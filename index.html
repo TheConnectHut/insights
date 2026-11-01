@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insights</title>
+<style>
+  /* ============ DESIGN TOKENS (from ankahee-design-tokens.css) ============ */
+  :root {
+    --bg: #FAF6F2;
+    --surface: #FFFFFF;
+    --surface-soft: #F3EEE8;
+    --primary: #5B4B7C;
+    --primary-dark: #443A5E;
+    --primary-soft: #EDE8F3;
+    --success: #4F8A6D;
+    --success-soft: #E7F1EB;
+    --risk: #B8524A;
+    --risk-soft: #F7E9E7;
+    --text: #2E2A33;
+    --text-muted: #7A7480;
+    --border: #E4DDD6;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 10px rgba(46, 42, 51, 0.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); }
+  [hidden] { display: none !important; }
+
+  /* ============ HEADER ============ */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 12px; display: flex; align-items: center; gap: 8px; min-height: 58px;
+  }
+  .icon-btn {
+    width: 44px; height: 44px; border: none; background: none; border-radius: 999px;
+    font-size: 28px; line-height: 1; color: var(--primary); cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn:active { background: var(--primary-soft); }
+  .icon-btn.refresh { font-size: 24px; }
+  .icon-btn.spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hdr-title { flex: 1; min-width: 0; padding-left: 4px; }
+  .hdr-title .title { font-size: 16px; font-weight: 700; color: var(--primary-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-title .subtitle { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-logo { height: 32px; width: auto; max-width: 96px; border-radius: 6px; flex-shrink: 0; }
+  #hActions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* ============ LAYOUT ============ */
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 120px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--primary-dark); margin: 0 0 10px 0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-title .link-btn { text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .muted { color: var(--text-muted); }
+  .small { font-size: 13px; }
+  .center { text-align: center; }
+  .loading-note, .empty { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 15px; }
+  .empty .btn { margin-top: 12px; }
+
+  /* ============ BUTTONS ============ */
+  .btn {
+    min-height: 44px; padding: 10px 18px; border-radius: var(--radius-sm); border: 1.5px solid var(--primary);
+    background: var(--surface); color: var(--primary); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+  }
+  .btn:active { background: var(--primary-soft); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:active { background: var(--primary-dark); }
+  .btn-sm { min-height: 44px; padding: 8px 14px; font-size: 14px; border-radius: 999px; }
+  .btn:disabled { opacity: 0.5; }
+  .link-btn { background: none; border: none; color: var(--primary); font-weight: 600; font-size: 15px; cursor: pointer; padding: 10px 4px; min-height: 44px; font-family: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ============ BOTTOM BAR ============ */
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface);
+    border-top: 1px solid var(--border); padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .bar-inner { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  .bar-inner .btn { flex: 1; min-height: 50px; font-size: 16px; font-weight: 700; }
+  .bar-error { max-width: 720px; margin: 0 auto 8px; font-size: 13px; color: var(--risk); text-align: center; display: none; }
+
+  /* ============ TABS, SEARCH, FILTERS ============ */
+  .identity-bar {
+    display: flex; align-items: center; justify-content: space-between; background: var(--primary-soft);
+    border-radius: var(--radius-sm); padding: 4px 6px 4px 14px; margin-bottom: 14px; font-size: 14px;
+  }
+  .identity-bar strong { color: var(--primary-dark); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; }
+  .tab {
+    padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
+    font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; min-height: 44px; white-space: nowrap; font-family: inherit;
+  }
+  .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .searchrow { display: flex; gap: 8px; margin-bottom: 10px; }
+  .searchrow input { flex: 1; }
+  .filter-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .filter-panel .field { margin: 0; }
+  .filter-panel .wide { grid-column: 1 / -1; text-align: right; }
+  .count-line { font-size: 13px; color: var(--text-muted); margin: 4px 2px 10px; }
+
+  /* ============ LIST ROWS ============ */
+  .list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+  .row { display: block; padding: 14px 16px; border-bottom: 1px solid var(--border); text-decoration: none; color: inherit; min-height: 44px; }
+  .row:last-child { border-bottom: none; }
+  a.row:active { background: var(--primary-soft); }
+  .row-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .row-title { font-weight: 600; font-size: 16px; color: var(--text); }
+  .row-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .row-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ============ BADGES ============ */
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--surface-soft); color: var(--text); white-space: nowrap;
+  }
+  .st-new { background: var(--primary-soft); color: var(--primary-dark); }
+  .st-prog { background: var(--primary); color: #fff; }
+  .st-conv { background: var(--success-soft); color: var(--success); }
+  .st-ni { background: var(--surface-soft); color: var(--text-muted); }
+  .cold { background: var(--risk-soft); color: var(--risk); }
+  .tag { background: var(--primary-soft); color: var(--primary-dark); }
+
+  /* ============ ORGANISATION PAGE ============ */
+  .org-name { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .contact { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .contact:last-child { border-bottom: none; padding-bottom: 0; }
+  .contact:first-child { padding-top: 0; }
+  .c-name { font-weight: 600; }
+  .c-role { font-size: 13px; color: var(--text-muted); }
+  .c-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; }
+  .c-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; }
+  .about-text, .pre { white-space: pre-wrap; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 14px; }
+  .kv dt { color: var(--text-muted); } .kv dd { margin: 0; }
+  .int { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .int:last-child { border-bottom: none; padding-bottom: 0; }
+  .int:first-child { padding-top: 0; }
+  .int-top { font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .int-top b { color: var(--text); }
+  .int-edit { margin: -12px -4px -12px 0; flex-shrink: 0; font-size: 14px; }
+  .int-sum { margin-top: 3px; white-space: pre-wrap; }
+  .int-next { margin-top: 4px; font-size: 14px; white-space: pre-wrap; }
+  .overdue { color: var(--risk); font-weight: 600; }
+  .meta { font-size: 13px; color: var(--text-muted); }
+  .meta-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+  .banner { background: var(--risk-soft); border: 1px solid #E9C9C5; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 14px; }
+  .banner.soft { background: var(--primary-soft); border-color: var(--border); }
+  .banner ul { margin: 6px 0 0; padding-left: 18px; }
+
+  /* ============ FORMS ============ */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .field-label .optional { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 4px; }
+  select, input[type="text"], input[type="date"], input[type="search"], input[type="url"] {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+    font-size: 16px; background: var(--surface); color: var(--text); min-height: 46px; font-family: inherit;
+  }
+  textarea {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+    font-size: 16px; font-family: inherit; min-height: 80px; resize: vertical; background: var(--surface); color: var(--text);
+  }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
+    font-size: 14px; color: var(--text); cursor: pointer; min-height: 44px; display: flex; align-items: center;
+    user-select: none; font-family: inherit;
+  }
+  .chip:active { transform: scale(0.97); }
+  .chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+  .chips[data-multi] .chip.selected::before { content: "✓"; margin-right: 6px; font-weight: 700; }
+  .chip.disabled { opacity: 0.45; cursor: default; text-decoration: line-through; }
+  .field.flash { outline: 2px solid var(--risk); border-radius: 10px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .check-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .check-row:last-child { border-bottom: none; }
+  .check-row input { width: 24px; height: 24px; accent-color: var(--primary); flex-shrink: 0; }
+  .check-row .grow { flex: 1; min-width: 0; }
+  .dupbox { background: var(--primary-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .dupbox a.row { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 8px; }
+  .dupbox .btns { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+
+  .combo { position: relative; }
+  .combo-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); z-index: 25; }
+  .combo-item { padding: 10px 14px; min-height: 44px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; }
+  .combo-item:active, .combo-item:hover { background: var(--primary-soft); }
+  .combo-item .s { font-size: 12px; color: var(--text-muted); }
+  .combo-empty { padding: 12px 14px; color: var(--text-muted); font-size: 14px; }
+
+  /* ============ SHEET, TOAST, CONFIRM ============ */
+  .sheet-back { position: fixed; inset: 0; background: rgba(46, 42, 51, 0.35); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: var(--surface); width: 100%; max-width: 720px; border-radius: var(--radius) var(--radius) 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet .btn { width: 100%; margin-bottom: 10px; }
+  .sheet .btn:last-child { margin-bottom: 0; }
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--primary-dark); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 14px; z-index: 90; max-width: 90%; box-shadow: var(--shadow); }
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(46, 42, 51, 0.35); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .confirm-overlay.show { display: flex; }
+  .confirm-card { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 320px; box-shadow: 0 8px 30px rgba(46,42,51,0.15); }
+  .confirm-check { width: 56px; height: 56px; border-radius: 50%; background: var(--success-soft); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .confirm-check svg { width: 28px; height: 28px; }
+  .confirm-check circle { stroke: var(--success); stroke-width: 2; fill: none; stroke-dasharray: 63; stroke-dashoffset: 63; animation: circleDraw 0.5s ease forwards; }
+  .confirm-check path { stroke: var(--success); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw 0.3s ease forwards 0.45s; }
+  @keyframes circleDraw { to { stroke-dashoffset: 0; } }
+  @keyframes checkDraw { to { stroke-dashoffset: 0; } }
+  .confirm-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
+  .confirm-sub { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+  /* ============ FEATURE SPEC TABLE ============ */
+  .spec-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  table.spec { border-collapse: collapse; min-width: 1100px; font-size: 13px; }
+  table.spec th { text-align: left; background: var(--primary-soft); color: var(--primary-dark); padding: 10px; position: sticky; top: 0; }
+  table.spec td { vertical-align: top; padding: 10px; border-top: 1px solid var(--border); }
+  .spec-view main, body.spec-view main { max-width: none; }
+
+  @media (prefers-reduced-motion: reduce) { .confirm-check circle, .confirm-check path { animation: none; stroke-dashoffset: 0; } .icon-btn.spin { animation: none; } }
+</style>
+<style>
+  /* ---- Insights-only styles (same tokens as above) ---- */
+  .fn-row { margin-bottom: 14px; }
+  .fn-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .fn-name { font-weight: 600; font-size: 15px; }
+  .fn-num { font-weight: 700; font-size: 18px; color: var(--primary-dark); }
+  .fn-num small { font-weight: 500; font-size: 13px; color: var(--text-muted); margin-left: 6px; }
+  .fn-track { background: var(--surface-soft); border-radius: 999px; height: 16px; overflow: hidden; }
+  .fn-bar { height: 100%; border-radius: 999px; background: var(--primary); min-width: 6px; }
+  .fn-bar.first { background: var(--primary-soft); border: 1px solid var(--primary); }
+  .fn-bar.won { background: var(--success); }
+  .fn-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--surface-soft); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 24px; color: var(--primary-dark); }
+  .stat span { font-size: 13px; color: var(--text-muted); }
+  .stat.warn b { color: var(--risk); }
+  .names { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+  .lost-line { padding: 6px 0; }
+  table.mini { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.mini th { text-align: right; font-weight: 600; color: var(--text-muted); padding: 6px 4px; font-size: 12px; }
+  table.mini th:first-child, table.mini td:first-child { text-align: left; }
+  table.mini td { text-align: right; padding: 8px 4px; border-top: 1px solid var(--border); }
+  .period-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .filters { margin-bottom: 14px; }
+  .filters .field { margin-bottom: 12px; }
+  .asof { font-size: 13px; color: var(--text-muted); margin: 0 2px 12px; }
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <img id="hLogo" class="hdr-logo" alt="" hidden>
+  <div class="hdr-title"><div class="title" id="hTitle"></div><div class="subtitle" id="hSub"></div></div>
+  <div id="hActions"></div>
+</header>
+<main id="view"><div class="loading-note">Loading…</div></main>
+<div class="bar" id="bar" hidden></div>
+<div class="confirm-overlay" id="confirmOverlay"><div class="confirm-card"><p class="confirm-title" id="confirmTitle"></p></div></div>
+
+<script>
+'use strict';
+/* ====================================================================
+   Insights — read-only view for founders and core members (one HTML file), v1
+   Reads the company's CRM web app with the Insights Team Key, which the
+   script accepts for the read-only getInsights action only. No stage name
+   is written here: stages and their Kind (Open, Won, Lost) come from the
+   Lists tab. Pipeline is the first view; later views register like it.
+   The Feature Spec is generated from the spec tags at build time.
+   ==================================================================== */
+
+// ==== PURE BEGIN (no page access; tested on its own) ====
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+function parseD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+function daysBetween(a, b) { return Math.round((parseD(b) - parseD(a)) / 86400000); }
+function addDays(s, n) { return new Date(parseD(s) + n * 86400000).toISOString().slice(0, 10); }
+function fmtD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] : ''; }
+function fmtShort(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] : ''; }
+
+// Period: Last 7 days and Last 30 days roll back from today (today included); This week runs Monday to today.
+function periodRange(kind, today, cFrom, cTo) {
+  if (kind === 'week') { const dow = new Date(parseD(today)).getUTCDay(); return { from: addDays(today, -((dow + 6) % 7)), to: today }; }
+  if (kind === '30') return { from: addDays(today, -29), to: today };
+  if (kind === 'custom') {
+    let f = cFrom || today, t = cTo || today;
+    if (f > t) { const x = f; f = t; t = x; }
+    return { from: f, to: t };
+  }
+  return { from: addDays(today, -6), to: today };
+}
+function periodLabel(r) { return r.from === r.to ? fmtD(r.from) : fmtShort(r.from) + ' to ' + fmtD(r.to); }
+
+function computeInsights(data, opts) {
+  opts = opts || {};
+  const today = data.config.today, stale = data.config.staleAfterDays || 90;
+  const stages = data.lists.stage, kinds = data.lists.stageKind || {};
+  const kindOf = s => kinds[s] || '';
+  const funnelStages = stages.filter(s => kindOf(s) === 'Open' || kindOf(s) === 'Won');
+  const fi = {}; funnelStages.forEach((s, i) => { fi[s] = i; });
+  const first = funnelStages[0] || '';
+  const orgById = {}; data.orgs.forEach(o => { orgById[o['Org ID']] = o; });
+  function resolve(id) { for (let h = 0; h < 6; h++) { const o = orgById[id]; if (o && o['Record Status'] === 'Archived' && o['Archived To']) id = o['Archived To']; else break; } return id; }
+  const orgName = id => { const o = orgById[resolve(id)]; return o ? o['Org Name'] : id; };
+  const prodName = {}; data.products.forEach(p => { prodName[p['Product ID']] = p['Product Name']; });
+  const E = data.engagements.filter(e => !opts.campaign || e['Campaign ID'] === opts.campaign);
+  const inE = {}; E.forEach(e => { inE[e['Engagement ID']] = 1; });
+  const histBy = {};
+  data.stageHistory.forEach(h => { (histBy[h['Engagement ID']] = histBy[h['Engagement ID']] || []).push(h); });
+  const range = opts.range || periodRange('7', today);
+
+  const reached = funnelStages.map(() => 0), nowHere = funnelStages.map(() => 0);
+  const lostBy = {}; // lost stage -> { total, left: {stage: n} }
+  const mv = { ahead: {}, signed: {}, lost: {}, aheadList: [], signedList: [], lostList: [] };
+  const lastInt = {};
+  data.interactions.forEach(i => { const k = i['Engagement ID']; if (k && (!lastInt[k] || i['Date'] > lastInt[k])) lastInt[k] = i['Date']; });
+  const att = { stale: [], revisit: [], overdue: 0, overdueList: [] };
+  const prodRows = {};
+
+  E.forEach(e => {
+    const id = e['Engagement ID'], cur = e['Stage'];
+    let rows = (histBy[id] || []).slice().sort((a, b) => (a['Changed On'] + a['Log ID']).localeCompare(b['Changed On'] + b['Log ID']))
+      .map(h => ({ from: h['From Stage'], to: h['To Stage'], on: h['Changed On'] || '' }));
+    let implied = false;
+    if (!rows.length) { rows = [{ from: '', to: cur, on: e['Stage Changed On'] || e['Start Date'] || '' }]; implied = true; }
+    let far = 0;
+    rows.forEach(r => [r.from, r.to].forEach(s => { if (fi[s] !== undefined) far = Math.max(far, fi[s]); }));
+    if (fi[cur] !== undefined) far = Math.max(far, fi[cur]);
+    for (let i = 0; i <= far; i++) reached[i]++;
+    if (fi[cur] !== undefined) nowHere[fi[cur]]++;
+    // lost
+    if (kindOf(cur) === 'Lost') {
+      const lb = lostBy[cur] = lostBy[cur] || { total: 0, left: {} };
+      lb.total++;
+      const lr = rows[rows.length - 1];
+      let from = (lr && lr.to === cur && fi[lr.from] !== undefined) ? lr.from : 'Before history';
+      lb.left[from] = (lb.left[from] || 0) + 1;
+    }
+    // movement inside the period
+    const org = resolve(e['Org ID']);
+    rows.forEach(r => {
+      const d = (r.on || '').slice(0, 10);
+      if (!d || d < range.from || d > range.to) return;
+      const k = kindOf(r.to), ti = fi[r.to], ff = fi[r.from];
+      const creation = r.from === '' && r.to === first;
+      if (creation) return;
+      if (k === 'Open' || k === 'Won') {
+        const ahead = (ff !== undefined) ? ti > ff : (r.from === '' ? ti > 0 : false);
+        if (ahead && !mv.ahead[org]) { mv.ahead[org] = 1; mv.aheadList.push({ org: orgName(org), stage: r.to }); }
+        if (k === 'Won' && !mv.signed[org]) { mv.signed[org] = 1; mv.signedList.push({ org: orgName(org), stage: r.to }); }
+      } else if (k === 'Lost' && !mv.lost[org]) { mv.lost[org] = 1; mv.lostList.push({ org: orgName(org), stage: r.to }); }
+    });
+    // needs attention (as of today)
+    if (kindOf(cur) === 'Open' && cur !== first) {
+      const from = lastInt[id] || e['Start Date'];
+      const n = daysBetween(from, today);
+      if (!isNaN(n) && n > stale) att.stale.push({ org: orgName(e['Org ID']), days: n, stage: cur });
+    }
+    if (kindOf(cur) === 'Lost' && e['Revisit On'] && e['Revisit On'] <= today) att.revisit.push({ org: orgName(e['Org ID']), on: e['Revisit On'] });
+    // by product
+    const pr = prodRows[e['Product ID']] = prodRows[e['Product ID']] || { product: prodName[e['Product ID']] || e['Product ID'], total: 0, open: 0, won: 0, lost: 0 };
+    pr.total++; const kk = kindOf(cur); if (kk === 'Open') pr.open++; else if (kk === 'Won') pr.won++; else if (kk === 'Lost') pr.lost++;
+  });
+  data.interactions.forEach(i => {
+    if (!i['Follow-up Date'] || String(i['Follow-up Done']).toLowerCase() === 'yes' || i['Follow-up Date'] >= today) return;
+    if (i['Engagement ID']) { if (!inE[i['Engagement ID']]) return; } else if (opts.campaign) return;
+    att.overdue++;
+  });
+  att.stale.sort((a, b) => b.days - a.days);
+  return {
+    total: E.length, range: range, today: today,
+    funnel: funnelStages.map((s, i) => ({ stage: s, kind: kindOf(s), reached: reached[i], now: nowHere[i], pct: i === 0 ? null : (reached[i - 1] ? Math.round(reached[i] / reached[i - 1] * 100) : 0) })),
+    lost: stages.filter(s => kindOf(s) === 'Lost').map(s => ({ stage: s, total: (lostBy[s] || { total: 0 }).total, left: lostBy[s] ? lostBy[s].left : {} })),
+    movement: { ahead: mv.aheadList, signed: mv.signedList, lost: mv.lostList },
+    attention: att,
+    products: Object.keys(prodRows).map(k => prodRows[k]).sort((a, b) => b.total - a.total),
+    multiProduct: data.products.length > 1 && Object.keys(prodRows).length > 1,
+    stageOrder: stages
+  };
+}
+function leftText(lost, order) {
+  const parts = [];
+  order.forEach(s => { if (lost.left[s]) parts.push(lost.left[s] + ' after ' + s); });
+  if (lost.left['Before history']) parts.push(lost.left['Before history'] + ' before history');
+  return parts.join(', ');
+}
+function buildSummary(data, r, campaignLabel) {
+  const L = [];
+  L.push((data.config.workspaceName ? data.config.workspaceName + ' · ' : '') + 'Pipeline' + (campaignLabel ? ' · ' + campaignLabel : '') + ' · ' + fmtD(r.today));
+  L.push(r.funnel.map(f => f.stage + ' ' + f.reached + (f.pct === null ? '' : ' (' + f.pct + '%)')).join(' → '));
+  r.lost.forEach(l => { if (l.total) L.push(l.stage + ': ' + l.total + (leftText(l, r.funnel.map(f => f.stage)) ? ' (' + leftText(l, r.funnel.map(f => f.stage)) + ')' : '')); });
+  const m = r.movement, lostName = r.lost.length ? r.lost[0].stage : 'lost';
+  L.push(periodLabel(r.range) + ': ' + plural(m.ahead.length, 'college') + ' moved ahead, ' + m.signed.length + ' signed off, ' + m.lost.length + ' moved to ' + lostName + '.');
+  const a = r.attention, bits = [];
+  if (a.stale.length) bits.push(a.stale.length + ' gone quiet');
+  if (a.overdue) bits.push(plural(a.overdue, 'overdue follow-up'));
+  if (a.revisit.length) bits.push(a.revisit.length + ' ready to revisit');
+  L.push(bits.length ? 'Needs attention: ' + bits.join(', ') + '.' : 'Nothing needs attention.');
+  return L.join('\n');
+}
+// ==== PURE END ====
+
+/* ---------- page code ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const escA = esc;
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
+const S = { url: '', key: '', data: null, ui: { campaign: null, period: '7', from: '', to: '' }, logo: '' };
+const mem = {}; let NS = 'ins.';
+const store = {
+  get(k) { try { return localStorage.getItem(NS + k); } catch (e) { return mem[NS + k] || null; } },
+  set(k, v) { try { localStorage.setItem(NS + k, v); } catch (e) { mem[NS + k] = v; } },
+  del(k) { try { localStorage.removeItem(NS + k); } catch (e) { delete mem[NS + k]; } }
+};
+async function api(action) {
+  const q = 'action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(S.key);
+  let res;
+  try { res = await fetch(S.url + (S.url.indexOf('?') >= 0 ? '&' : '?') + q); }
+  catch (e) { throw new Error("Couldn't reach the tool. Check the connection and try again."); }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('The tool sent back something unexpected. Check the web app address.'); }
+  if (!json.ok) throw new Error(json.error || 'Something went wrong.');
+  return json.data;
+}
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = s => { const x = (pa >> s) & 255, y = (pb >> s) & 255; return Math.round(x + (y - x) * t); };
+  return '#' + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, '0')).join('');
+}
+function applyBrand(c) {
+  if (!/^#[0-9a-f]{6}$/i.test(c || '')) return;
+  const st = document.documentElement.style;
+  st.setProperty('--primary', c); st.setProperty('--primary-dark', mixHex(c, '#000000', 0.25)); st.setProperty('--primary-soft', mixHex(c, '#ffffff', 0.88));
+}
+function setChrome(title, sub, actions) {
+  $('#hTitle').textContent = title || ''; $('#hSub').textContent = sub || ''; $('#hActions').innerHTML = actions || '';
+  const img = $('#hLogo'); if (img) { if (S.logo && img.getAttribute('src') !== S.logo) img.setAttribute('src', S.logo); img.hidden = !S.logo; }
+}
+function setBar(html) { const b = $('#bar'); if (!html) { b.hidden = true; b.innerHTML = ''; return; } b.hidden = false; b.innerHTML = '<div class="bar-error" id="barError"></div><div class="bar-inner">' + html + '</div>'; }
+function show(html, bar) { $('#view').innerHTML = html; setBar(bar); }
+function barError(msg) { const e = $('#barError'); if (e) { e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; } }
+let toastTimer = null;
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+const ACTS = {};
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip[data-act]');
+  const a = chip || e.target.closest('[data-act]');
+  if (a && ACTS[a.dataset.act]) ACTS[a.dataset.act](a, e);
+});
+document.addEventListener('change', e => { const a = e.target.closest('[data-chg]'); if (a && ACTS[a.dataset.chg]) ACTS[a.dataset.chg](a, e); });
+function fieldInput(id, label, type, value) { return '<div class="field"><label class="field-label">' + esc(label) + '</label><input id="' + id + '" type="' + type + '" value="' + escA(value || '') + '" autocomplete="off"></div>'; }
+
+/* ==== BEGIN I01 — Connect with the Insights key ============================== */
+/* @spec I01
+ * Feature: Connect with the Insights key
+ * Status: New in v1
+ * Screen: First open
+ * Delta: New start-up flow: the web app address (from the landing page link ?url=, or typed once) and the Insights Team Key. Both are remembered on the device for that address. The heading and main colour come from Config.
+ * Validations: Form: the web app address must answer; the key is required. The server accepts the Insights Team Key only for the read-only getInsights action, and the Team Key also works. A wrong key shows a message and asks again.
+ * Calculations: Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link only when the link's own web app address is the one in use [CONFIRMED].
+ * Dependencies: Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs).
+ * @end */
+function viewConnect(msg) {
+  setChrome('Insights', '', ''); 
+  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fieldInput('cUrl', 'Web app address', 'url', S.url) + '</div>', '<button class="btn btn-primary" id="goUrl">Connect</button>');
+  $('#goUrl').addEventListener('click', async () => {
+    const url = $('#cUrl').value.trim(); if (!url) { barError('Please enter the web app address.'); return; }
+    const b = $('#goUrl'); b.disabled = true; b.textContent = 'Checking…';
+    let ok = false;
+    try { const r = await fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping'); ok = (await r.json()).ok; } catch (e) { ok = false; }
+    b.disabled = false; b.textContent = 'Connect';
+    if (!ok) { barError('That address did not answer. Please check it and try again.'); return; }
+    useUrl(url); begin();
+  });
+}
+function viewKey(msg) {
+  setChrome('Insights', '', '');
+  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fieldInput('cKey', 'Insights key', 'text', '') + '</div>', '<button class="btn btn-primary" id="goKey">Open</button>');
+  $('#goKey').addEventListener('click', () => { const k = $('#cKey').value.trim(); if (!k) { barError('Please enter the key.'); return; } S.key = k; store.set('key', k); load(); });
+}
+function useUrl(url) {
+  NS = 'ins.'; store.set('lastUrl', url); S.url = url; NS = 'ins.' + hashStr(url) + '.';
+  const p = new URLSearchParams(location.search), lg = p.get('logo') || '';
+  if (/^https?:\/\//i.test(lg) && p.get('url') === S.url) store.set('logo', lg);
+  S.logo = store.get('logo') || '';
+}
+function begin() { S.key = store.get('key') || ''; if (!S.key) { viewKey(); return; } load(); }
+async function load() {
+  setChrome('Insights', '', ''); show('<div class="loading-note">Loading…</div>');
+  try { await refresh(); }
+  catch (e) { if (/key/i.test(e.message)) { store.del('key'); S.key = ''; viewKey(e.message); return; } show('<div class="empty">' + esc(e.message) + '<br><button class="btn btn-primary" data-act="retry">Try again</button><br><button class="link-btn" data-act="changeUrl">Change web app address</button></div>'); return; }
+  render();
+}
+async function refresh() {
+  const d = await api('getInsights');
+  S.data = d; applyBrand(d.config.primaryColour);
+  if (S.ui.campaign === null) S.ui.campaign = defaultCampaign(d);
+}
+function defaultCampaign(d) {
+  const act = d.campaigns.filter(c => String(c['Active']).toLowerCase() === 'yes').sort((a, b) => (b['Start Date'] || '').localeCompare(a['Start Date'] || ''));
+  return act.length ? act[0]['Campaign ID'] : '';
+}
+ACTS.retry = () => load();
+ACTS.changeUrl = () => viewConnect();
+ACTS.refresh = async el => {
+  el.disabled = true; el.classList.add('spin');
+  try { await refresh(); render(); toast('Up to date.'); } catch (e) { el.disabled = false; el.classList.remove('spin'); toast(e.message); }
+};
+/* ==== END I01 ================================================================ */
+
+/* ==== BEGIN I02 — Pipeline funnel ============================================= */
+/* @spec I02
+ * Feature: Pipeline funnel
+ * Status: New in v1
+ * Screen: Insights > Pipeline
+ * Delta: New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot.
+ * Validations: Form: none. Stages are never written in the tool; if the Stage list has no Open or Won stage the tool says so.
+ * Calculations: An engagement has reached a stage when the furthest Open or Won stage it has been in, taken from the Stage History log and its current stage, is that stage or later [CONFIRMED]. Reached is therefore never lower for a later stage [CONFIRMED]. Conversion is the stage's reached count as a percentage of the previous bar's reached count [CONFIRMED]. Now here is the number of engagements whose current stage is that stage [CONFIRMED]. An engagement with no Stage History rows is treated as having one row for its current stage dated by Stage Changed On [CONFIRMED]. A Lost engagement with no history counts only at the first stage [CONFIRMED]. The funnel is always as of today and is not affected by the period [CONFIRMED]. Left here: for each Lost stage, the stage each engagement was in just before it moved to Lost, named exactly as in the Lists tab, or Before history when the log does not show it [CONFIRMED]. Bars: first stage soft purple, other Open stages purple, Won green [CONFIRMED].
+ * Dependencies: Engagements; Stage History; Lists (Company): Stage, Stage Kind; F23 (getInsights); F22 (log written by the CRM); I05 (campaign filter).
+ * @end */
+function funnelHtml(r) {
+  if (!r.funnel.length) return '<div class="card"><div class="empty">The Stage list has no Open or Won stage yet.</div></div>';
+  const top = Math.max(r.funnel[0].reached, 1);
+  const bars = r.funnel.map((f, i) => '<div class="fn-row"><div class="fn-head"><div class="fn-name">' + esc(f.stage) + '</div><div class="fn-num">' + f.reached + (f.pct === null ? '' : '<small>' + f.pct + '%</small>') + '</div></div>'
+    + '<div class="fn-track"><div class="fn-bar' + (f.kind === 'Won' ? ' won' : i === 0 ? ' first' : '') + '" style="width:' + Math.max(f.reached / top * 100, f.reached ? 3 : 0) + '%"></div></div>'
+    + '<div class="fn-sub">' + (f.now ? f.now + ' there now' : 'None there now') + '</div></div>').join('');
+  const lost = r.lost.filter(l => l.total).map(l => '<div class="lost-line"><b>' + esc(l.stage) + ' · ' + l.total + '</b>' + (leftText(l, r.funnel.map(f => f.stage)) ? '<div class="fn-sub">' + esc(leftText(l, r.funnel.map(f => f.stage))) + '</div>' : '') + '</div>').join('');
+  return '<div class="card"><div class="card-title">Pipeline<span class="muted" style="text-transform:none;letter-spacing:0">' + plural(r.total, 'college') + '</span></div>' + bars + '</div>'
+    + (lost ? '<div class="card"><div class="card-title">Left the pipeline</div>' + lost + '</div>' : '');
+}
+/* ==== END I02 ================================================================ */
+
+/* ==== BEGIN I03 — Movement in the period ===================================== */
+/* @spec I03
+ * Feature: Movement in the period
+ * Status: New in v1
+ * Screen: Insights > Pipeline > This period
+ * Delta: New card with the period chips (Last 7 days, This week, Last 30 days, Custom) and three counts: moved ahead, signed off and moved to a Lost stage, each with the college names. A Custom period shows From and To dates.
+ * Validations: Form: Custom needs two dates; if From is after To the two are swapped. Both dates are included.
+ * Calculations: Last 7 days is today and the six days before; Last 30 days is today and the 29 days before; This week is Monday to today; all are rolling from today [CONFIRMED]. Default is Last 7 days [CONFIRMED]. Moved ahead counts each college once when any of its stage changes in the period went to a later Open or Won stage (signing off also counts as moving ahead) [CONFIRMED]. Signed off counts colleges that moved to the Won stage in the period [CONFIRMED]. Moved to Lost counts colleges that moved to a Lost stage in the period [CONFIRMED]. A new engagement's first row (created at the first stage) is not movement [CONFIRMED]. The date of a change is the date part of Changed On [CONFIRMED]. The period applies only to this card; the funnel and Needs attention are always as of today [CONFIRMED].
+ * Dependencies: Stage History; Engagements; Orgs; Lists (Company): Stage, Stage Kind; I02.
+ * @end */
+function namesLine(list, max) {
+  if (!list.length) return '';
+  const shown = list.slice(0, max).map(x => esc(x.org) + ' (' + esc(x.stage) + ')').join(', ');
+  return '<div class="names">' + shown + (list.length > max ? ' and ' + (list.length - max) + ' more' : '') + '</div>';
+}
+function movementHtml(r) {
+  const m = r.movement, ui = S.ui;
+  const chips = [['7', 'Last 7 days'], ['week', 'This week'], ['30', 'Last 30 days'], ['custom', 'Custom']];
+  const lostLabel = r.lost.length ? r.lost[0].stage : 'Lost';
+  return '<div class="card"><div class="card-title">Movement</div><div class="chips" style="margin-bottom:6px">'
+    + chips.map(c => '<button class="chip' + (ui.period === c[0] ? ' selected' : '') + '" data-act="period" data-v="' + c[0] + '">' + c[1] + '</button>').join('') + '</div>'
+    + (ui.period === 'custom' ? '<div class="period-custom"><div class="field" style="margin:0"><label class="field-label">From</label><input type="date" id="pFrom" data-chg="pdate" value="' + escA(r.range.from) + '"></div><div class="field" style="margin:0"><label class="field-label">To</label><input type="date" id="pTo" data-chg="pdate" value="' + escA(r.range.to) + '"></div></div>' : '')
+    + '<div class="asof">' + esc(periodLabel(r.range)) + '</div>'
+    + '<div class="stat-grid"><div class="stat"><b>' + m.ahead.length + '</b><span>Moved ahead</span></div><div class="stat"><b>' + m.signed.length + '</b><span>Signed off</span></div><div class="stat"><b>' + m.lost.length + '</b><span>' + esc(lostLabel) + '</span></div></div>'
+    + namesLine(m.ahead, 8) + (m.signed.length ? '<div class="names"><b>Signed off:</b> ' + m.signed.slice(0, 8).map(x => esc(x.org)).join(', ') + '</div>' : '') + '</div>';
+}
+ACTS.period = el => { S.ui.period = el.dataset.v; if (S.ui.period === 'custom' && !S.ui.from) { S.ui.from = periodRange('7', S.data.config.today).from; S.ui.to = S.data.config.today; } render(); };
+ACTS.pdate = () => { S.ui.from = $('#pFrom').value; S.ui.to = $('#pTo').value; render(); };
+/* ==== END I03 ================================================================ */
+
+/* ==== BEGIN I04 — Needs attention ============================================= */
+/* @spec I04
+ * Feature: Needs attention
+ * Status: New in v1
+ * Screen: Insights > Pipeline > Needs attention
+ * Delta: New card with three counts and names: colleges gone quiet, overdue follow-ups and colleges ready to revisit.
+ * Validations: Form: none.
+ * Calculations: Gone quiet: engagements at an Open stage other than the first one whose days since the last interaction (or the start date when there is none) are more than Stale After Days [CONFIRMED]. Overdue follow-ups: interactions with a Follow-up Date before today that are not done, for engagements in the view [CONFIRMED]. Ready to revisit: engagements at a Lost stage whose Revisit On is today or earlier [CONFIRMED]. Always as of today and not affected by the period [CONFIRMED]. When nothing needs attention the card says so [CONFIRMED].
+ * Dependencies: Engagements; Interactions; Config (Company): Stale After Days; Lists (Company): Stage, Stage Kind.
+ * @end */
+function attentionHtml(r) {
+  const a = r.attention;
+  if (!a.stale.length && !a.overdue && !a.revisit.length) return '<div class="card"><div class="card-title">Needs attention</div><div class="muted">All clear. Nothing is waiting on anyone.</div></div>';
+  return '<div class="card"><div class="card-title">Needs attention</div><div class="stat-grid">'
+    + '<div class="stat' + (a.stale.length ? ' warn' : '') + '"><b>' + a.stale.length + '</b><span>Gone quiet</span></div>'
+    + '<div class="stat' + (a.overdue ? ' warn' : '') + '"><b>' + a.overdue + '</b><span>Overdue follow-ups</span></div>'
+    + '<div class="stat"><b>' + a.revisit.length + '</b><span>Ready to revisit</span></div></div>'
+    + (a.stale.length ? '<div class="names"><b>Quiet:</b> ' + a.stale.slice(0, 6).map(x => esc(x.org) + ' (' + x.days + ' days)').join(', ') + (a.stale.length > 6 ? ' and ' + (a.stale.length - 6) + ' more' : '') + '</div>' : '')
+    + (a.revisit.length ? '<div class="names"><b>Revisit:</b> ' + a.revisit.slice(0, 6).map(x => esc(x.org)).join(', ') + (a.revisit.length > 6 ? ' and ' + (a.revisit.length - 6) + ' more' : '') + '</div>' : '') + '</div>';
+}
+/* ==== END I04 ================================================================ */
+
+/* ==== BEGIN I05 — Campaign filter ============================================= */
+/* @spec I05
+ * Feature: Campaign filter
+ * Status: New in v1
+ * Screen: Insights > Pipeline (top)
+ * Delta: New choice at the top of the Pipeline view to look at one campaign or all engagements. Chips for up to six choices, a dropdown for more.
+ * Validations: Form: none.
+ * Calculations: The view opens on the most recent active campaign (by Start Date), or on All when there are no campaigns [CONFIRMED]. All shows every engagement, including ones with no campaign [CONFIRMED]. The choice applies to the funnel, movement, needs attention and the product table [CONFIRMED]. Overdue follow-ups not linked to an engagement are counted only under All [CONFIRMED].
+ * Dependencies: Campaigns (company sheet); Engagements: Campaign ID.
+ * @end */
+function filterHtml() {
+  const cs = S.data.campaigns;
+  if (!cs.length) return '';
+  const opts = [{ v: '', l: 'All' }].concat(cs.map(c => ({ v: c['Campaign ID'], l: c['Campaign Name'] })));
+  if (opts.length <= 6) return '<div class="filters"><div class="chips">' + opts.map(o => '<button class="chip' + (S.ui.campaign === o.v ? ' selected' : '') + '" data-act="camp" data-v="' + escA(o.v) + '">' + esc(o.l) + '</button>').join('') + '</div></div>';
+  return '<div class="filters"><div class="field"><label class="field-label">Campaign</label><select data-chg="campsel">' + opts.map(o => '<option value="' + escA(o.v) + '"' + (S.ui.campaign === o.v ? ' selected' : '') + '>' + esc(o.l) + '</option>').join('') + '</select></div></div>';
+}
+ACTS.camp = el => { S.ui.campaign = el.dataset.v; render(); };
+ACTS.campsel = el => { S.ui.campaign = el.value; render(); };
+/* ==== END I05 ================================================================ */
+
+/* ==== BEGIN I06 — By product ================================================== */
+/* @spec I06
+ * Feature: By product
+ * Status: New in v1
+ * Screen: Insights > Pipeline > By product
+ * Delta: New small table with one row per product: total, in progress, signed off and lost. Shown only when the view contains more than one product.
+ * Validations: Form: none.
+ * Calculations: In progress counts engagements at an Open stage, signed off those at the Won stage and lost those at a Lost stage, by current stage [CONFIRMED]. The table is hidden when there is only one product, so a bundle-only campaign shows the funnel alone [CONFIRMED].
+ * Dependencies: Products; Engagements; Lists (Company): Stage Kind.
+ * @end */
+function productHtml(r) {
+  if (!r.multiProduct) return '';
+  return '<div class="card"><div class="card-title">By product</div><table class="mini"><thead><tr><th>Product</th><th>Total</th><th>In progress</th><th>Signed off</th><th>Lost</th></tr></thead><tbody>'
+    + r.products.map(p => '<tr><td>' + esc(p.product) + '</td><td>' + p.total + '</td><td>' + p.open + '</td><td>' + p.won + '</td><td>' + p.lost + '</td></tr>').join('') + '</tbody></table></div>';
+}
+/* ==== END I06 ================================================================ */
+
+/* ==== BEGIN I07 — Copy summary ================================================ */
+/* @spec I07
+ * Feature: Copy summary
+ * Status: New in v1
+ * Screen: Insights > Pipeline (bottom bar)
+ * Delta: New button that copies a short plain-text summary of the view (funnel, who left, movement in the period and what needs attention) for pasting into a weekly message next to a screenshot.
+ * Validations: Form: none. If the device blocks copying, the text is shown to be copied by hand.
+ * Calculations: The text uses the stage names exactly as in the Lists tab, the chosen campaign and period, and today's date [CONFIRMED]. It carries the same numbers as the screen [CONFIRMED].
+ * Dependencies: I02, I03, I04, I05.
+ * @end */
+ACTS.copy = async () => {
+  const text = currentSummary();
+  try { await navigator.clipboard.writeText(text); toast('Summary copied.'); }
+  catch (e) {
+    show($('#view').innerHTML + '<div class="card" id="manualCopy"><div class="card-title">Copy this</div><textarea rows="8" readonly>' + esc(text) + '</textarea></div>', $('#bar').innerHTML ? '<button class="btn btn-primary" data-act="copy">Copy summary</button>' : '');
+    const ta = $('#manualCopy textarea'); if (ta) { ta.focus(); ta.select(); }
+  }
+};
+/* ==== END I07 ================================================================ */
+
+/* ==== BEGIN I08 — Refresh ===================================================== */
+/* @spec I08
+ * Feature: Refresh
+ * Status: New in v1
+ * Screen: Header
+ * Delta: New refresh button in the header that fetches the latest numbers without reloading the page. The campaign and period choices are kept.
+ * Validations: Form: none.
+ * Calculations: Refresh fetches the same data as the first load and redraws the view [CONFIRMED]. If the fetch fails, a message appears and the numbers on screen are kept [CONFIRMED].
+ * Dependencies: I01.
+ * @end */
+/* ==== END I08 ================================================================ */
+
+/* ---------- Pipeline view ---------- */
+function currentResult() {
+  const d = S.data;
+  return computeInsights(d, { campaign: S.ui.campaign || '', range: periodRange(S.ui.period, d.config.today, S.ui.from, S.ui.to) });
+}
+function campaignLabel() {
+  const c = S.data.campaigns.find(x => x['Campaign ID'] === S.ui.campaign);
+  return c ? c['Campaign Name'] : '';
+}
+function currentSummary() { return buildSummary(S.data, currentResult(), campaignLabel()); }
+function render() {
+  const d = S.data, r = currentResult();
+  setChrome('Insights', d.config.workspaceName || '', '<button class="icon-btn refresh" data-act="refresh" aria-label="Refresh" title="Refresh">&#8635;</button><button class="link-btn" data-act="spec">Feature Spec</button>');
+  document.body.classList.remove('spec-view');
+  const warn = (d.stageWarnings || []).length ? '<div class="banner"><b>A few things to fix in the Stage list</b><ul>' + d.stageWarnings.map(x => '<li>' + esc(x.message) + '</li>').join('') + '</ul></div>' : '';
+  show(warn + filterHtml() + '<div class="asof">As of ' + esc(fmtD(d.config.today)) + '</div>' + funnelHtml(r) + movementHtml(r) + attentionHtml(r) + productHtml(r), '<button class="btn btn-primary" data-act="copy">Copy summary</button>');
+}
+ACTS.spec = () => {
+  setChrome('Feature Spec', '', '<button class="link-btn" data-act="back">Back</button>');
+  document.body.classList.add('spec-view');
+  const mark = s => esc(s).replace(/\[CONFIRMED[^\]]*\]/g, m => '<span class="badge st-conv">' + m.slice(1, -1) + '</span>').replace(/\[UNVERIFIED[^\]]*\]/g, m => '<span class="badge cold">' + m.slice(1, -1) + '</span>');
+  show('<div class="spec-wrap"><table class="spec"><thead><tr><th>Sr No</th><th>Feature</th><th>New / Modified</th><th>Screen / Location</th><th>Delta</th><th>Validations</th><th>Calculations</th><th>Dependencies</th></tr></thead><tbody>'
+    + FEATURE_SPEC.map((f, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(f.feature) + '</b></td><td>' + esc(f.status) + '</td><td>' + esc(f.screen) + '</td><td>' + esc(f.delta) + '</td><td>' + esc(f.validations) + '</td><td>' + mark(f.calculations) + '</td><td>' + esc(f.dependencies) + '</td></tr>').join('') + '</tbody></table></div>', '');
+};
+ACTS.back = () => render();
+const FEATURE_SPEC = [
+ {
+  "feature": "Connect with the Insights key",
+  "status": "New in v1",
+  "screen": "First open",
+  "delta": "New start-up flow: the web app address (from the landing page link ?url=, or typed once) and the Insights Team Key. Both are remembered on the device for that address. The heading and main colour come from Config.",
+  "validations": "Form: the web app address must answer; the key is required. The server accepts the Insights Team Key only for the read-only getInsights action, and the Team Key also works. A wrong key shows a message and asks again.",
+  "calculations": "Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link only when the link's own web app address is the one in use [CONFIRMED].",
+  "dependencies": "Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs).",
+  "id": "I01"
+ },
+ {
+  "feature": "Pipeline funnel",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline",
+  "delta": "New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot.",
+  "validations": "Form: none. Stages are never written in the tool; if the Stage list has no Open or Won stage the tool says so.",
+  "calculations": "An engagement has reached a stage when the furthest Open or Won stage it has been in, taken from the Stage History log and its current stage, is that stage or later [CONFIRMED]. Reached is therefore never lower for a later stage [CONFIRMED]. Conversion is the stage's reached count as a percentage of the previous bar's reached count [CONFIRMED]. Now here is the number of engagements whose current stage is that stage [CONFIRMED]. An engagement with no Stage History rows is treated as having one row for its current stage dated by Stage Changed On [CONFIRMED]. A Lost engagement with no history counts only at the first stage [CONFIRMED]. The funnel is always as of today and is not affected by the period [CONFIRMED]. Left here: for each Lost stage, the stage each engagement was in just before it moved to Lost, named exactly as in the Lists tab, or Before history when the log does not show it [CONFIRMED]. Bars: first stage soft purple, other Open stages purple, Won green [CONFIRMED].",
+  "dependencies": "Engagements; Stage History; Lists (Company): Stage, Stage Kind; F23 (getInsights); F22 (log written by the CRM); I05 (campaign filter).",
+  "id": "I02"
+ },
+ {
+  "feature": "Movement in the period",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline > This period",
+  "delta": "New card with the period chips (Last 7 days, This week, Last 30 days, Custom) and three counts: moved ahead, signed off and moved to a Lost stage, each with the college names. A Custom period shows From and To dates.",
+  "validations": "Form: Custom needs two dates; if From is after To the two are swapped. Both dates are included.",
+  "calculations": "Last 7 days is today and the six days before; Last 30 days is today and the 29 days before; This week is Monday to today; all are rolling from today [CONFIRMED]. Default is Last 7 days [CONFIRMED]. Moved ahead counts each college once when any of its stage changes in the period went to a later Open or Won stage (signing off also counts as moving ahead) [CONFIRMED]. Signed off counts colleges that moved to the Won stage in the period [CONFIRMED]. Moved to Lost counts colleges that moved to a Lost stage in the period [CONFIRMED]. A new engagement's first row (created at the first stage) is not movement [CONFIRMED]. The date of a change is the date part of Changed On [CONFIRMED]. The period applies only to this card; the funnel and Needs attention are always as of today [CONFIRMED].",
+  "dependencies": "Stage History; Engagements; Orgs; Lists (Company): Stage, Stage Kind; I02.",
+  "id": "I03"
+ },
+ {
+  "feature": "Needs attention",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline > Needs attention",
+  "delta": "New card with three counts and names: colleges gone quiet, overdue follow-ups and colleges ready to revisit.",
+  "validations": "Form: none.",
+  "calculations": "Gone quiet: engagements at an Open stage other than the first one whose days since the last interaction (or the start date when there is none) are more than Stale After Days [CONFIRMED]. Overdue follow-ups: interactions with a Follow-up Date before today that are not done, for engagements in the view [CONFIRMED]. Ready to revisit: engagements at a Lost stage whose Revisit On is today or earlier [CONFIRMED]. Always as of today and not affected by the period [CONFIRMED]. When nothing needs attention the card says so [CONFIRMED].",
+  "dependencies": "Engagements; Interactions; Config (Company): Stale After Days; Lists (Company): Stage, Stage Kind.",
+  "id": "I04"
+ },
+ {
+  "feature": "Campaign filter",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline (top)",
+  "delta": "New choice at the top of the Pipeline view to look at one campaign or all engagements. Chips for up to six choices, a dropdown for more.",
+  "validations": "Form: none.",
+  "calculations": "The view opens on the most recent active campaign (by Start Date), or on All when there are no campaigns [CONFIRMED]. All shows every engagement, including ones with no campaign [CONFIRMED]. The choice applies to the funnel, movement, needs attention and the product table [CONFIRMED]. Overdue follow-ups not linked to an engagement are counted only under All [CONFIRMED].",
+  "dependencies": "Campaigns (company sheet); Engagements: Campaign ID.",
+  "id": "I05"
+ },
+ {
+  "feature": "By product",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline > By product",
+  "delta": "New small table with one row per product: total, in progress, signed off and lost. Shown only when the view contains more than one product.",
+  "validations": "Form: none.",
+  "calculations": "In progress counts engagements at an Open stage, signed off those at the Won stage and lost those at a Lost stage, by current stage [CONFIRMED]. The table is hidden when there is only one product, so a bundle-only campaign shows the funnel alone [CONFIRMED].",
+  "dependencies": "Products; Engagements; Lists (Company): Stage Kind.",
+  "id": "I06"
+ },
+ {
+  "feature": "Copy summary",
+  "status": "New in v1",
+  "screen": "Insights > Pipeline (bottom bar)",
+  "delta": "New button that copies a short plain-text summary of the view (funnel, who left, movement in the period and what needs attention) for pasting into a weekly message next to a screenshot.",
+  "validations": "Form: none. If the device blocks copying, the text is shown to be copied by hand.",
+  "calculations": "The text uses the stage names exactly as in the Lists tab, the chosen campaign and period, and today's date [CONFIRMED]. It carries the same numbers as the screen [CONFIRMED].",
+  "dependencies": "I02, I03, I04, I05.",
+  "id": "I07"
+ },
+ {
+  "feature": "Refresh",
+  "status": "New in v1",
+  "screen": "Header",
+  "delta": "New refresh button in the header that fetches the latest numbers without reloading the page. The campaign and period choices are kept.",
+  "validations": "Form: none.",
+  "calculations": "Refresh fetches the same data as the first load and redraws the view [CONFIRMED]. If the fetch fails, a message appears and the numbers on screen are kept [CONFIRMED].",
+  "dependencies": "I01.",
+  "id": "I08"
+ }
+];
+
+function start() {
+  const p = new URLSearchParams(location.search);
+  NS = 'ins.';
+  const url = p.get('url') || store.get('lastUrl') || '';
+  if (!url) { viewConnect(); return; }
+  useUrl(url); begin();
+}
+if (typeof document !== 'undefined' && document.getElementById('view')) start();
+</script>
+</body>
+</html>

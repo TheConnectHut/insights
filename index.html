@@ -263,6 +263,7 @@
 </style>
 <style>
   /* ---- Training view styles (same tokens) ---- */
+  .view-title { font-size: 20px; font-weight: 700; color: var(--primary-dark); margin: 2px 2px 12px; }
   .view-tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; }
   .period-step { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; }
   .period-step .label { font-weight: 700; color: var(--primary-dark); text-align: center; flex: 1; }
@@ -403,11 +404,11 @@ function fieldInput(id, label, type, value, optional) { return '<div class="fiel
 /* ==== BEGIN I09 — Views and the view switcher ================================ */
 /* @spec I09
  * Feature: Views and view switcher
- * Status: New in v4
+ * Status: Modified in v6
  * Screen: Insights (top of every view)
- * Delta: Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.
+ * Delta: Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available. In v6 a title line with the view's name (Pipeline, Training) sits above each view's content, below the switcher and below the Insights header, which stays as it is.
  * Validations: Form: none. The switcher is not shown when only one view is available.
- * Calculations: A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].
+ * Calculations: A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view's name is set by its label in the code; the switcher tab and the title line use the same word, and nothing else depends on it [CONFIRMED]. The title line shows even when there is only one view and so no switcher [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].
  * Dependencies: I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.
  * @end */
 function availableViews() { return Object.keys(VIEWS).filter(id => S.views[id]); }
@@ -421,7 +422,7 @@ function paint(body) {
   const v = S.views[S.active];
   setChrome('Insights', (v.data && v.data.config.workspaceName) || '', '<button class="icon-btn refresh" data-act="refresh" aria-label="Refresh" title="Refresh">&#8635;</button><button class="link-btn" data-act="spec">Feature Spec</button>');
   document.body.classList.remove('spec-view');
-  show(switcherHtml() + body, '');
+  show(switcherHtml() + '<h1 class="view-title">' + esc(VIEWS[S.active].label) + '</h1>' + body, '');
 }
 function render() { if (S.active && S.views[S.active] && S.views[S.active].data) VIEWS[S.active].render(); }
 ACTS.view = el => openView(el.dataset.v);
@@ -616,9 +617,9 @@ function leftText(lost, order) {
 /* ==== BEGIN I02 — Pipeline funnel ============================================= */
 /* @spec I02
  * Feature: Pipeline funnel
- * Status: Modified in v2
+ * Status: Modified in v6
  * Screen: Insights > Pipeline
- * Delta: New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot. In v2 the college count is removed from the heading (it always equals the first bar), and a line under the heading names the campaign and the products in it.
+ * Delta: New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot. In v2 the college count is removed from the heading (it always equals the first bar), and a line under the heading names the campaign and the products in it. In v6 the Pipeline heading inside the card is removed because the view title (see I09) now says it.
  * Validations: Form: none. Stages are never written in the tool; if the Stage list has no Open or Won stage the tool says so.
  * Calculations: An engagement has reached a stage when the furthest Open or Won stage it has been in, taken from the Stage History log and its current stage, is that stage or later [CONFIRMED]. Reached is therefore never lower for a later stage [CONFIRMED]. Conversion is the stage's reached count as a percentage of the previous bar's reached count [CONFIRMED]. Now here is the number of engagements whose current stage is that stage [CONFIRMED]. An engagement with no Stage History rows is treated as having one row for its current stage dated by Stage Changed On [CONFIRMED]. A Lost engagement with no history counts only at the first stage [CONFIRMED]. The funnel is always as of today and is not affected by the period [CONFIRMED]. Left here: for each Lost stage, the stage each engagement was in just before it moved to Lost, named exactly as in the Lists tab [CONFIRMED]. The breakdown is shown only when the log names that stage for every college that left; otherwise only the total is shown [CONFIRMED]. The products line lists the distinct product names of the engagements in the view, in alphabetical order, joined by commas [CONFIRMED]. The count of colleges is not shown in the heading because the first bar always equals it [CONFIRMED]. Bars: first stage soft purple, other Open stages purple, Won green [CONFIRMED].
  * Dependencies: Engagements; Stage History; Lists (Company): Stage, Stage Kind; Products; F23 (getInsights); F22 (log written by the CRM); I05 (campaign filter); Products.
@@ -631,7 +632,7 @@ function funnelHtml(r) {
     + '<div class="fn-sub">' + (f.now ? f.now + ' there now' : 'None there now') + '</div></div>').join('');
   const lost = r.lost.filter(l => l.total).map(l => '<div class="lost-line"><b>' + esc(l.stage) + ' · ' + l.total + '</b>' + (leftText(l, r.funnel.map(f => f.stage)) ? '<div class="fn-sub">' + esc(leftText(l, r.funnel.map(f => f.stage))) + '</div>' : '') + '</div>').join('');
   const camp = campaignLabel() || 'All campaigns';
-  return '<div class="card"><div class="card-title">Pipeline</div><div class="asof">' + esc([camp].concat(r.productNames).join(' · ')) + '</div>' + bars + '</div>'
+  return '<div class="card"><div class="asof">' + esc([camp].concat(r.productNames).join(' · ')) + '</div>' + bars + '</div>'
     + (lost ? '<div class="card"><div class="card-title">Left the pipeline</div>' + lost + '</div>' : '');
 }
 /* ==== END I02 ================================================================ */
@@ -703,7 +704,7 @@ function defaultCampaign(d) {
   return act.length ? act[0]['Campaign ID'] : '';
 }
 VIEWS.pipeline = {
-  label: 'Pipeline', addressLabel: 'CRM web app address (Pipeline)', param: 'crm_pipeline', legacyParam: 'url', lastKey: 'lastUrl', action: 'getInsights',
+  label: 'Outreach Campaign Pipeline', addressLabel: 'CRM web app address (Pipeline)', param: 'crm_pipeline', legacyParam: 'url', lastKey: 'lastUrl', action: 'getInsights',
   init(d) { PL.data = d; if (PL.ui.campaign === null) PL.ui.campaign = defaultCampaign(d); },
   render() {
     const d = PL.data, r = currentResult();
@@ -1037,7 +1038,7 @@ function noticeHtml(recs) {
 /* ==== END I17 ================================================================ */
 
 VIEWS.training = {
-  label: 'Training', addressLabel: 'Training web app address', param: 'training', lastKey: 'lastUrlTraining', action: 'getTrainingInsights',
+  label: 'Training Impact & Revenue', addressLabel: 'Training web app address', param: 'training', lastKey: 'lastUrlTraining', action: 'getTrainingInsights',
   init(d) { TR.data = d; TR.recs = buildRecs(d); TR.byId = {}; d.trainings.forEach(t => { TR.byId[t['Training ID']] = t; }); },
   render() {
     const d = TR.data, ui = TR.ui, range = trRange(), prevRange = trPrevious(ui.period, range, d.config.today);
@@ -1063,9 +1064,9 @@ const FEATURE_SPEC = [
  },
  {
   "feature": "Pipeline funnel",
-  "status": "Modified in v2",
+  "status": "Modified in v6",
   "screen": "Insights > Pipeline",
-  "delta": "New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot. In v2 the college count is removed from the heading (it always equals the first bar), and a line under the heading names the campaign and the products in it.",
+  "delta": "New first view of the Insights tool: one bar for each Open or Won stage, in the order of the Lists tab, showing how many colleges reached that stage, the conversion from the previous stage and how many are there now. Colleges that left are shown below the bars. Meant to be read at a glance or shared as a screenshot. In v2 the college count is removed from the heading (it always equals the first bar), and a line under the heading names the campaign and the products in it. In v6 the Pipeline heading inside the card is removed because the view title (see I09) now says it.",
   "validations": "Form: none. Stages are never written in the tool; if the Stage list has no Open or Won stage the tool says so.",
   "calculations": "An engagement has reached a stage when the furthest Open or Won stage it has been in, taken from the Stage History log and its current stage, is that stage or later [CONFIRMED]. Reached is therefore never lower for a later stage [CONFIRMED]. Conversion is the stage's reached count as a percentage of the previous bar's reached count [CONFIRMED]. Now here is the number of engagements whose current stage is that stage [CONFIRMED]. An engagement with no Stage History rows is treated as having one row for its current stage dated by Stage Changed On [CONFIRMED]. A Lost engagement with no history counts only at the first stage [CONFIRMED]. The funnel is always as of today and is not affected by the period [CONFIRMED]. Left here: for each Lost stage, the stage each engagement was in just before it moved to Lost, named exactly as in the Lists tab [CONFIRMED]. The breakdown is shown only when the log names that stage for every college that left; otherwise only the total is shown [CONFIRMED]. The products line lists the distinct product names of the engagements in the view, in alphabetical order, joined by commas [CONFIRMED]. The count of colleges is not shown in the heading because the first bar always equals it [CONFIRMED]. Bars: first stage soft purple, other Open stages purple, Won green [CONFIRMED].",
   "dependencies": "Engagements; Stage History; Lists (Company): Stage, Stage Kind; Products; F23 (getInsights); F22 (log written by the CRM); I05 (campaign filter); Products.",
@@ -1103,11 +1104,11 @@ const FEATURE_SPEC = [
  },
  {
   "feature": "Views and view switcher",
-  "status": "New in v4",
+  "status": "Modified in v6",
   "screen": "Insights (top of every view)",
-  "delta": "Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.",
+  "delta": "Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available. In v6 a title line with the view's name (Pipeline, Training) sits above each view's content, below the switcher and below the Insights header, which stays as it is.",
   "validations": "Form: none. The switcher is not shown when only one view is available.",
-  "calculations": "A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].",
+  "calculations": "A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view's name is set by its label in the code; the switcher tab and the title line use the same word, and nothing else depends on it [CONFIRMED]. The title line shows even when there is only one view and so no switcher [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].",
   "dependencies": "I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.",
   "id": "I09"
  },

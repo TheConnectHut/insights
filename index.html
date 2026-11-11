@@ -261,6 +261,45 @@
   .filters .field { margin-bottom: 12px; }
   .asof { font-size: 13px; color: var(--text-muted); margin: 0 2px 12px; }
 </style>
+<style>
+  /* ---- Training view styles (same tokens) ---- */
+  .view-tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; }
+  .period-step { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; }
+  .period-step .label { font-weight: 700; color: var(--primary-dark); text-align: center; flex: 1; }
+  .step-btn { width: 44px; height: 44px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); color: var(--primary); font-size: 20px; cursor: pointer; font-family: inherit; }
+  .step-btn:disabled { opacity: 0.35; cursor: default; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .tile { text-align: left; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; font-family: inherit; color: var(--text); min-height: 44px; box-shadow: var(--shadow); }
+  .tile.selected { border-color: var(--primary); background: var(--primary-soft); }
+  .tile .t-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .tile .t-num { display: block; font-size: 22px; font-weight: 700; color: var(--primary-dark); margin: 2px 0; }
+  .tile .t-chg { font-size: 12px; font-weight: 600; }
+  .t-up { color: var(--success); } .t-down { color: var(--risk); } .t-flat { color: var(--text-muted); }
+  .tiles-note { font-size: 12px; color: var(--text-muted); margin: 0 2px 14px; }
+  .fchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .fchip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 8px 6px 14px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 14px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
+  .fchip .x { font-size: 18px; line-height: 1; opacity: 0.85; }
+  .fchip small { font-weight: 400; opacity: 0.85; }
+  .dimchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .dimchips .chip.dim-off { opacity: 0.4; cursor: default; }
+  .trend { display: flex; align-items: flex-end; gap: 6px; height: 150px; overflow-x: auto; padding-top: 18px; }
+  .trend .col { flex: 1 0 28px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 28px; }
+  .trend .v { font-size: 11px; color: var(--text-muted); white-space: nowrap; margin-bottom: 2px; }
+  .trend .b { width: 70%; max-width: 38px; background: var(--primary); border-radius: 6px 6px 0 0; min-height: 3px; }
+  .trend .b.zero { background: var(--border); }
+  .trend-labels { display: flex; gap: 6px; overflow-x: hidden; }
+  .trend-labels span { flex: 1 0 28px; min-width: 28px; text-align: center; font-size: 11px; color: var(--text-muted); }
+  .vb-row { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border); padding: 10px 2px; cursor: pointer; font-family: inherit; color: var(--text); min-height: 44px; }
+  .vb-row:last-child { border-bottom: none; }
+  .vb-row:active { background: var(--primary-soft); }
+  .vb-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+  .vb-name { font-weight: 600; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+  .vb-num { font-weight: 700; color: var(--primary-dark); white-space: nowrap; }
+  .vb-num small { font-weight: 500; color: var(--text-muted); margin-left: 6px; }
+  .vb-track { background: var(--surface-soft); border-radius: 999px; height: 12px; overflow: hidden; }
+  .vb-bar { height: 100%; border-radius: 999px; background: var(--primary); min-width: 4px; }
+  .notice { background: var(--surface-soft); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+</style>
 </head>
 <body>
 
@@ -276,19 +315,24 @@
 <script>
 'use strict';
 /* ====================================================================
-   Insights — read-only view for founders and core members (one HTML file), v3
-   Reads the company's CRM web app with the Insights Team Key, which the
-   script accepts for the read-only getInsights action only. No stage name
-   is written here: stages and their Kind (Open, Won, Lost) come from the
-   Lists tab. Pipeline is the first view; later views register like it.
-   The Feature Spec is generated from the spec tags at build time.
+   Insights — read-only views for founders and core members (one HTML file), v4
+   Built from separate source files joined at build time: head, core,
+   registry, pipeline view, training view, tail. Each view is one isolated
+   block with its own spec tags (Pipeline: I02, I03, I05; Training: I10 to
+   I17); deleting a view's file removes the view. The Feature Spec is
+   generated from the spec tags at build time.
+   Pipeline reads the company's CRM web app (action getInsights); Training
+   reads the company's Training web app (action getTrainingInsights). Each
+   web app accepts its Insights Team Key for that one read action only.
+   v4: view registry and switcher (I09), Training view (I10 to I17).
    v3: Moved ahead is listed one row per stage (see I03).
    v2: Needs attention (I04), By product (I06) and Copy summary (I07) were
    removed and their numbers are not reused.
    ==================================================================== */
 
-// ==== PURE BEGIN (no page access; tested on its own) ====
+// ==== PURE BEGIN (core: no page access; tested on its own) ====
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
 function parseD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
@@ -296,7 +340,193 @@ function daysBetween(a, b) { return Math.round((parseD(b) - parseD(a)) / 8640000
 function addDays(s, n) { return new Date(parseD(s) + n * 86400000).toISOString().slice(0, 10); }
 function fmtD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] : ''; }
 function fmtShort(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] : ''; }
+// ==== PURE END ====
 
+
+/* ---------- page helpers ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const escA = esc;
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
+const S = { views: {}, active: '', logo: '' };   // S.views[id] = { url, key, data, loaded }
+const VIEWS = {};                                // filled by each view file: VIEWS[id] = { label, param, lastKey, action, init, render }
+const mem = {};
+// Stored on this device: ns '' = whole page, ns = hash of a web app address = that address.
+const store = {
+  k(ns, k) { return 'ins.' + (ns ? ns + '.' : '') + k; },
+  get(ns, k) { try { return localStorage.getItem(this.k(ns, k)); } catch (e) { return mem[this.k(ns, k)] || null; } },
+  set(ns, k, v) { try { localStorage.setItem(this.k(ns, k), v); } catch (e) { mem[this.k(ns, k)] = v; } },
+  del(ns, k) { try { localStorage.removeItem(this.k(ns, k)); } catch (e) { delete mem[this.k(ns, k)]; } }
+};
+async function api(view, action) {
+  const q = 'action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(view.key || '');
+  let res;
+  try { res = await fetch(view.url + (view.url.indexOf('?') >= 0 ? '&' : '?') + q); }
+  catch (e) { throw new Error("Couldn't reach the tool. Check the connection and try again."); }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('The tool sent back something unexpected. Check the web app address.'); }
+  if (!json.ok) throw new Error(json.error || 'Something went wrong.');
+  return json.data;
+}
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = s => { const x = (pa >> s) & 255, y = (pb >> s) & 255; return Math.round(x + (y - x) * t); };
+  return '#' + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, '0')).join('');
+}
+function applyBrand(c) {
+  if (!/^#[0-9a-f]{6}$/i.test(c || '')) return;
+  const st = document.documentElement.style;
+  st.setProperty('--primary', c); st.setProperty('--primary-dark', mixHex(c, '#000000', 0.25)); st.setProperty('--primary-soft', mixHex(c, '#ffffff', 0.88));
+}
+function setChrome(title, sub, actions) {
+  $('#hTitle').textContent = title || ''; $('#hSub').textContent = sub || ''; $('#hActions').innerHTML = actions || '';
+  const img = $('#hLogo'); if (img) { if (S.logo && img.getAttribute('src') !== S.logo) img.setAttribute('src', S.logo); img.hidden = !S.logo; }
+}
+function setBar(html) { const b = $('#bar'); if (!html) { b.hidden = true; b.innerHTML = ''; return; } b.hidden = false; b.innerHTML = '<div class="bar-error" id="barError"></div><div class="bar-inner">' + html + '</div>'; }
+function show(html, bar) { $('#view').innerHTML = html; setBar(bar); }
+function barError(msg) { const e = $('#barError'); if (e) { e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; } }
+let toastTimer = null;
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+const ACTS = {};
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip[data-act]');
+  const a = chip || e.target.closest('[data-act]');
+  if (a && ACTS[a.dataset.act]) ACTS[a.dataset.act](a, e);
+});
+document.addEventListener('change', e => { const a = e.target.closest('[data-chg]'); if (a && ACTS[a.dataset.chg]) ACTS[a.dataset.chg](a, e); });
+function fieldInput(id, label, type, value, optional) { return '<div class="field"><label class="field-label">' + esc(label) + (optional ? '<span class="optional">optional</span>' : '') + '</label><input id="' + id + '" type="' + type + '" value="' + escA(value || '') + '" autocomplete="off"></div>'; }
+
+/* ==== BEGIN I09 — Views and the view switcher ================================ */
+/* @spec I09
+ * Feature: Views and view switcher
+ * Status: New in v4
+ * Screen: Insights (top of every view)
+ * Delta: Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.
+ * Validations: Form: none. The switcher is not shown when only one view is available.
+ * Calculations: A view is available when the link used to open Insights carries its web app address: url for Pipeline, training for Training [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].
+ * Dependencies: I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.
+ * @end */
+function availableViews() { return Object.keys(VIEWS).filter(id => S.views[id]); }
+function switcherHtml() {
+  const ids = availableViews();
+  if (ids.length < 2) return '';
+  return '<div class="view-tabs" role="tablist">' + ids.map(id => '<button class="tab' + (S.active === id ? ' active' : '') + '" role="tab" data-act="view" data-v="' + escA(id) + '">' + esc(VIEWS[id].label) + '</button>').join('') + '</div>';
+}
+// A view calls paint() with its own body; the header, switcher and brand are shared.
+function paint(body) {
+  const v = S.views[S.active];
+  setChrome('Insights', (v.data && v.data.config.workspaceName) || '', '<button class="icon-btn refresh" data-act="refresh" aria-label="Refresh" title="Refresh">&#8635;</button><button class="link-btn" data-act="spec">Feature Spec</button>');
+  document.body.classList.remove('spec-view');
+  show(switcherHtml() + body, '');
+}
+function render() { if (S.active && S.views[S.active] && S.views[S.active].data) VIEWS[S.active].render(); }
+ACTS.view = el => openView(el.dataset.v);
+function openView(id) {
+  if (!S.views[id]) return;
+  S.active = id; store.set('', 'view', id);
+  const v = S.views[id];
+  v.key = store.get(hashStr(v.url), 'key') || '';
+  if (v.data) { applyBrand(v.data.config.primaryColour); render(); } else loadView(id);
+}
+/* ==== END I09 ================================================================ */
+
+/* ==== BEGIN I01 — Connect with the Insights key ============================== */
+/* @spec I01
+ * Feature: Connect with the Insights key
+ * Status: Modified in v4
+ * Screen: First open
+ * Delta: Start-up flow: the web app addresses (from the landing page link, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.
+ * Validations: Form: each address given must answer; the key is required only when the server asks for one. Each web app accepts the Insights Team Key only for its one read action, and its Team Key also works. A wrong key shows a message and asks again.
+ * Calculations: Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link and kept for the page [CONFIRMED]. The heading shows the workspace name of the view on screen [CONFIRMED].
+ * Dependencies: Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs); F16 (getTrainingInsights action in training_v2.gs); I09.
+ * @end */
+function viewConnect(msg) {
+  setChrome('Insights', '', '');
+  const ids = Object.keys(VIEWS);
+  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + ids.map(id => fieldInput('cUrl_' + id, VIEWS[id].addressLabel, 'url', (S.views[id] || {}).url, ids.length > 1)).join('') + '</div>', '<button class="btn btn-primary" id="goUrl">Connect</button>');
+  $('#goUrl').addEventListener('click', async () => {
+    const given = {}; ids.forEach(id => { const x = $('#cUrl_' + id).value.trim(); if (x) given[id] = x; });
+    if (!Object.keys(given).length) { barError('Please enter a web app address.'); return; }
+    const b = $('#goUrl'); b.disabled = true; b.textContent = 'Checking…';
+    let bad = '';
+    for (const id of Object.keys(given)) {
+      let ok = false, url = given[id];
+      try { const r = await fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping'); ok = (await r.json()).ok; } catch (e) { ok = false; }
+      if (!ok) { bad = VIEWS[id].label; break; }
+    }
+    b.disabled = false; b.textContent = 'Connect';
+    if (bad) { barError('The ' + bad + ' address did not answer. Please check it and try again.'); return; }
+    ids.forEach(id => { if (given[id]) { store.set('', VIEWS[id].lastKey, given[id]); } else store.del('', VIEWS[id].lastKey); });
+    S.views = {}; ids.forEach(id => { if (given[id]) S.views[id] = { url: given[id], key: '', data: null }; });
+    openView(preferredView());
+  });
+}
+function viewKey(id, msg) {
+  setChrome('Insights', '', '');
+  const lab = availableViews().length > 1 ? ' for ' + VIEWS[id].label : '';
+  show(switcherHtml() + (msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fieldInput('cKey', 'Insights key' + lab, 'text', '') + '</div>', '<button class="btn btn-primary" id="goKey">Open</button>');
+  $('#goKey').addEventListener('click', () => {
+    const k = $('#cKey').value.trim(); if (!k) { barError('Please enter the key.'); return; }
+    const v = S.views[id]; v.key = k; store.set(hashStr(v.url), 'key', k); loadView(id);
+  });
+}
+function preferredView() { const ids = availableViews(), last = store.get('', 'view'); return ids.indexOf(last) >= 0 ? last : ids[0]; }
+async function loadView(id) {
+  setChrome('Insights', '', ''); show(switcherHtml() + '<div class="loading-note">Loading…</div>');
+  try { await refreshView(id); }
+  catch (e) {
+    if (/key/i.test(e.message)) { const v = S.views[id], had = !!v.key; store.del(hashStr(v.url), 'key'); v.key = ''; viewKey(id, had ? e.message : ''); return; }
+    show(switcherHtml() + '<div class="empty">' + esc(e.message) + '<br><button class="btn btn-primary" data-act="retry">Try again</button><br><button class="link-btn" data-act="changeUrl">Change web app address</button></div>'); return;
+  }
+  if (S.active === id) render();
+}
+async function refreshView(id) {
+  const v = S.views[id], d = await api(v, VIEWS[id].action);
+  v.data = d; applyBrand(d.config.primaryColour);
+  if (VIEWS[id].init) VIEWS[id].init(d);
+}
+ACTS.retry = () => loadView(S.active);
+ACTS.changeUrl = () => viewConnect();
+ACTS.refresh = async el => {
+  el.disabled = true; el.classList.add('spin');
+  try { await refreshView(S.active); render(); toast('Up to date.'); } catch (e) { el.disabled = false; el.classList.remove('spin'); toast(e.message); }
+};
+/* ==== END I01 ================================================================ */
+
+ACTS.spec = () => {
+  setChrome('Feature Spec', '', '<button class="link-btn" data-act="back">Back</button>');
+  document.body.classList.add('spec-view');
+  const mark = s => esc(s).replace(/\[CONFIRMED[^\]]*\]/g, m => '<span class="badge st-conv">' + m.slice(1, -1) + '</span>').replace(/\[UNVERIFIED[^\]]*\]/g, m => '<span class="badge cold">' + m.slice(1, -1) + '</span>');
+  show('<div class="spec-wrap"><table class="spec"><thead><tr><th>Sr No</th><th>Feature</th><th>New / Modified</th><th>Screen / Location</th><th>Delta</th><th>Validations</th><th>Calculations</th><th>Dependencies</th></tr></thead><tbody>'
+    + FEATURE_SPEC.map((f, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(f.feature) + '</b></td><td>' + esc(f.status) + '</td><td>' + esc(f.screen) + '</td><td>' + esc(f.delta) + '</td><td>' + esc(f.validations) + '</td><td>' + mark(f.calculations) + '</td><td>' + esc(f.dependencies) + '</td></tr>').join('') + '</tbody></table></div>', '');
+};
+ACTS.back = () => render();
+
+/* ==== BEGIN I08 — Refresh ===================================================== */
+/* @spec I08
+ * Feature: Refresh
+ * Status: New in v1
+ * Screen: Header
+ * Delta: New refresh button in the header that fetches the latest numbers without reloading the page. The campaign, period and filter choices are kept. In v4 it refreshes the view that is on screen.
+ * Validations: Form: none.
+ * Calculations: Refresh fetches the same data as the first load and redraws the view [CONFIRMED]. If the fetch fails, a message appears and the numbers on screen are kept [CONFIRMED].
+ * Dependencies: I01.
+ * @end */
+/* ==== END I08 ================================================================ */
+
+
+/* ====================================================================
+   PIPELINE VIEW (I02, I03, I05) — reads the CRM web app, action getInsights.
+   Moved into the registry unchanged in v4; only where it keeps its data
+   changed (PL.data and PL.ui instead of S.data and S.ui).
+   ==================================================================== */
+const PL = { data: null, ui: { campaign: null, period: '7', from: '', to: '' } };
+
+// ==== PURE BEGIN (pipeline) ====
 // Period: Last 7 days and Last 30 days roll back from today (today included); This week runs Monday to today.
 function periodRange(kind, today, cFrom, cTo) {
   if (kind === 'week') { const dow = new Date(parseD(today)).getUTCDay(); return { from: addDays(today, -((dow + 6) % 7)), to: today }; }
@@ -383,118 +613,6 @@ function leftText(lost, order) {
 }
 // ==== PURE END ====
 
-/* ---------- page code ---------- */
-const $ = (s, r) => (r || document).querySelector(s);
-const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
-const escA = esc;
-function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
-const S = { url: '', key: '', data: null, ui: { campaign: null, period: '7', from: '', to: '' }, logo: '' };
-const mem = {}; let NS = 'ins.';
-const store = {
-  get(k) { try { return localStorage.getItem(NS + k); } catch (e) { return mem[NS + k] || null; } },
-  set(k, v) { try { localStorage.setItem(NS + k, v); } catch (e) { mem[NS + k] = v; } },
-  del(k) { try { localStorage.removeItem(NS + k); } catch (e) { delete mem[NS + k]; } }
-};
-async function api(action) {
-  const q = 'action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(S.key);
-  let res;
-  try { res = await fetch(S.url + (S.url.indexOf('?') >= 0 ? '&' : '?') + q); }
-  catch (e) { throw new Error("Couldn't reach the tool. Check the connection and try again."); }
-  let json;
-  try { json = await res.json(); } catch (e) { throw new Error('The tool sent back something unexpected. Check the web app address.'); }
-  if (!json.ok) throw new Error(json.error || 'Something went wrong.');
-  return json.data;
-}
-function mixHex(a, b, t) {
-  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-  const ch = s => { const x = (pa >> s) & 255, y = (pb >> s) & 255; return Math.round(x + (y - x) * t); };
-  return '#' + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, '0')).join('');
-}
-function applyBrand(c) {
-  if (!/^#[0-9a-f]{6}$/i.test(c || '')) return;
-  const st = document.documentElement.style;
-  st.setProperty('--primary', c); st.setProperty('--primary-dark', mixHex(c, '#000000', 0.25)); st.setProperty('--primary-soft', mixHex(c, '#ffffff', 0.88));
-}
-function setChrome(title, sub, actions) {
-  $('#hTitle').textContent = title || ''; $('#hSub').textContent = sub || ''; $('#hActions').innerHTML = actions || '';
-  const img = $('#hLogo'); if (img) { if (S.logo && img.getAttribute('src') !== S.logo) img.setAttribute('src', S.logo); img.hidden = !S.logo; }
-}
-function setBar(html) { const b = $('#bar'); if (!html) { b.hidden = true; b.innerHTML = ''; return; } b.hidden = false; b.innerHTML = '<div class="bar-error" id="barError"></div><div class="bar-inner">' + html + '</div>'; }
-function show(html, bar) { $('#view').innerHTML = html; setBar(bar); }
-function barError(msg) { const e = $('#barError'); if (e) { e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; } }
-let toastTimer = null;
-function toast(msg) {
-  let t = $('#toast');
-  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
-  t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
-}
-const ACTS = {};
-document.addEventListener('click', e => {
-  const chip = e.target.closest('.chip[data-act]');
-  const a = chip || e.target.closest('[data-act]');
-  if (a && ACTS[a.dataset.act]) ACTS[a.dataset.act](a, e);
-});
-document.addEventListener('change', e => { const a = e.target.closest('[data-chg]'); if (a && ACTS[a.dataset.chg]) ACTS[a.dataset.chg](a, e); });
-function fieldInput(id, label, type, value) { return '<div class="field"><label class="field-label">' + esc(label) + '</label><input id="' + id + '" type="' + type + '" value="' + escA(value || '') + '" autocomplete="off"></div>'; }
-
-/* ==== BEGIN I01 — Connect with the Insights key ============================== */
-/* @spec I01
- * Feature: Connect with the Insights key
- * Status: Modified in v2
- * Screen: First open
- * Delta: New start-up flow: the web app address (from the landing page link ?url=, or typed once) and the Insights Team Key. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24).
- * Validations: Form: the web app address must answer; the key is required only when the server asks for one. The server accepts the Insights Team Key only for the read-only getInsights action, and the Team Key also works. A wrong key shows a message and asks again.
- * Calculations: Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link only when the link's own web app address is the one in use [CONFIRMED].
- * Dependencies: Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs).
- * @end */
-function viewConnect(msg) {
-  setChrome('Insights', '', ''); 
-  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fieldInput('cUrl', 'Web app address', 'url', S.url) + '</div>', '<button class="btn btn-primary" id="goUrl">Connect</button>');
-  $('#goUrl').addEventListener('click', async () => {
-    const url = $('#cUrl').value.trim(); if (!url) { barError('Please enter the web app address.'); return; }
-    const b = $('#goUrl'); b.disabled = true; b.textContent = 'Checking…';
-    let ok = false;
-    try { const r = await fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping'); ok = (await r.json()).ok; } catch (e) { ok = false; }
-    b.disabled = false; b.textContent = 'Connect';
-    if (!ok) { barError('That address did not answer. Please check it and try again.'); return; }
-    useUrl(url); begin();
-  });
-}
-function viewKey(msg) {
-  setChrome('Insights', '', '');
-  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fieldInput('cKey', 'Insights key', 'text', '') + '</div>', '<button class="btn btn-primary" id="goKey">Open</button>');
-  $('#goKey').addEventListener('click', () => { const k = $('#cKey').value.trim(); if (!k) { barError('Please enter the key.'); return; } S.key = k; store.set('key', k); load(); });
-}
-function useUrl(url) {
-  NS = 'ins.'; store.set('lastUrl', url); S.url = url; NS = 'ins.' + hashStr(url) + '.';
-  const p = new URLSearchParams(location.search), lg = p.get('logo') || '';
-  if (/^https?:\/\//i.test(lg) && p.get('url') === S.url) store.set('logo', lg);
-  S.logo = store.get('logo') || '';
-}
-function begin() { S.key = store.get('key') || ''; load(); }
-async function load() {
-  setChrome('Insights', '', ''); show('<div class="loading-note">Loading…</div>');
-  try { await refresh(); }
-  catch (e) { if (/key/i.test(e.message)) { const had = !!S.key; store.del('key'); S.key = ''; viewKey(had ? e.message : ''); return; } show('<div class="empty">' + esc(e.message) + '<br><button class="btn btn-primary" data-act="retry">Try again</button><br><button class="link-btn" data-act="changeUrl">Change web app address</button></div>'); return; }
-  render();
-}
-async function refresh() {
-  const d = await api('getInsights');
-  S.data = d; applyBrand(d.config.primaryColour);
-  if (S.ui.campaign === null) S.ui.campaign = defaultCampaign(d);
-}
-function defaultCampaign(d) {
-  const act = d.campaigns.filter(c => String(c['Active']).toLowerCase() === 'yes').sort((a, b) => (b['Start Date'] || '').localeCompare(a['Start Date'] || ''));
-  return act.length ? act[0]['Campaign ID'] : '';
-}
-ACTS.retry = () => load();
-ACTS.changeUrl = () => viewConnect();
-ACTS.refresh = async el => {
-  el.disabled = true; el.classList.add('spin');
-  try { await refresh(); render(); toast('Up to date.'); } catch (e) { el.disabled = false; el.classList.remove('spin'); toast(e.message); }
-};
-/* ==== END I01 ================================================================ */
-
 /* ==== BEGIN I02 — Pipeline funnel ============================================= */
 /* @spec I02
  * Feature: Pipeline funnel
@@ -517,7 +635,6 @@ function funnelHtml(r) {
     + (lost ? '<div class="card"><div class="card-title">Left the pipeline</div>' + lost + '</div>' : '');
 }
 /* ==== END I02 ================================================================ */
-
 /* ==== BEGIN I03 — Movement in the period ===================================== */
 /* @spec I03
  * Feature: Movement in the period
@@ -538,7 +655,7 @@ function aheadRows(list, order) {
     '<div class="names">' + esc(s) + ' - ' + list.filter(x => x.stage === s).map(x => esc(x.org)).join(', ') + '</div>').join('');
 }
 function movementHtml(r) {
-  const m = r.movement, ui = S.ui;
+  const m = r.movement, ui = PL.ui;
   const chips = [['7', 'Last 7 days'], ['week', 'This week'], ['30', 'Last 30 days'], ['custom', 'Custom']];
   const lostLabel = r.lost.length ? r.lost[0].stage : 'Lost';
   return '<div class="card"><div class="card-title">Movement</div><div class="chips" style="margin-bottom:6px">'
@@ -548,11 +665,9 @@ function movementHtml(r) {
     + '<div class="stat-grid"><div class="stat"><b>' + m.ahead.length + '</b><span>Moved ahead</span></div><div class="stat"><b>' + m.signed.length + '</b><span>Signed off</span></div><div class="stat"><b>' + m.lost.length + '</b><span>' + esc(lostLabel) + '</span></div></div>'
     + aheadRows(m.ahead, r.stageOrder) + namesLine('Signed off', m.signed) + namesLine(lostLabel, m.lost) + '</div>';
 }
-ACTS.period = el => { S.ui.period = el.dataset.v; if (S.ui.period === 'custom' && !S.ui.from) { S.ui.from = periodRange('7', S.data.config.today).from; S.ui.to = S.data.config.today; } render(); };
-ACTS.pdate = () => { S.ui.from = $('#pFrom').value; S.ui.to = $('#pTo').value; render(); };
+ACTS.period = el => { PL.ui.period = el.dataset.v; if (PL.ui.period === 'custom' && !PL.ui.from) { PL.ui.from = periodRange('7', PL.data.config.today).from; PL.ui.to = PL.data.config.today; } render(); };
+ACTS.pdate = () => { PL.ui.from = $('#pFrom').value; PL.ui.to = $('#pTo').value; render(); };
 /* ==== END I03 ================================================================ */
-
-
 /* ==== BEGIN I05 — Campaign filter ============================================= */
 /* @spec I05
  * Feature: Campaign filter
@@ -564,63 +679,386 @@ ACTS.pdate = () => { S.ui.from = $('#pFrom').value; S.ui.to = $('#pTo').value; r
  * Dependencies: Campaigns (company sheet); Engagements: Campaign ID.
  * @end */
 function filterHtml() {
-  const cs = S.data.campaigns;
+  const cs = PL.data.campaigns;
   if (!cs.length) return '';
   const opts = [{ v: '', l: 'All' }].concat(cs.map(c => ({ v: c['Campaign ID'], l: c['Campaign Name'] })));
-  if (opts.length <= 6) return '<div class="filters"><div class="chips">' + opts.map(o => '<button class="chip' + (S.ui.campaign === o.v ? ' selected' : '') + '" data-act="camp" data-v="' + escA(o.v) + '">' + esc(o.l) + '</button>').join('') + '</div></div>';
-  return '<div class="filters"><div class="field"><label class="field-label">Campaign</label><select data-chg="campsel">' + opts.map(o => '<option value="' + escA(o.v) + '"' + (S.ui.campaign === o.v ? ' selected' : '') + '>' + esc(o.l) + '</option>').join('') + '</select></div></div>';
+  if (opts.length <= 6) return '<div class="filters"><div class="chips">' + opts.map(o => '<button class="chip' + (PL.ui.campaign === o.v ? ' selected' : '') + '" data-act="camp" data-v="' + escA(o.v) + '">' + esc(o.l) + '</button>').join('') + '</div></div>';
+  return '<div class="filters"><div class="field"><label class="field-label">Campaign</label><select data-chg="campsel">' + opts.map(o => '<option value="' + escA(o.v) + '"' + (PL.ui.campaign === o.v ? ' selected' : '') + '>' + esc(o.l) + '</option>').join('') + '</select></div></div>';
 }
-ACTS.camp = el => { S.ui.campaign = el.dataset.v; render(); };
-ACTS.campsel = el => { S.ui.campaign = el.value; render(); };
+ACTS.camp = el => { PL.ui.campaign = el.dataset.v; render(); };
+ACTS.campsel = el => { PL.ui.campaign = el.value; render(); };
 /* ==== END I05 ================================================================ */
-
-
-
-/* ==== BEGIN I08 — Refresh ===================================================== */
-/* @spec I08
- * Feature: Refresh
- * Status: New in v1
- * Screen: Header
- * Delta: New refresh button in the header that fetches the latest numbers without reloading the page. The campaign and period choices are kept.
- * Validations: Form: none.
- * Calculations: Refresh fetches the same data as the first load and redraws the view [CONFIRMED]. If the fetch fails, a message appears and the numbers on screen are kept [CONFIRMED].
- * Dependencies: I01.
- * @end */
-/* ==== END I08 ================================================================ */
 
 /* ---------- Pipeline view ---------- */
 function currentResult() {
-  const d = S.data;
-  return computeInsights(d, { campaign: S.ui.campaign || '', range: periodRange(S.ui.period, d.config.today, S.ui.from, S.ui.to) });
+  const d = PL.data;
+  return computeInsights(d, { campaign: PL.ui.campaign || '', range: periodRange(PL.ui.period, d.config.today, PL.ui.from, PL.ui.to) });
 }
 function campaignLabel() {
-  const c = S.data.campaigns.find(x => x['Campaign ID'] === S.ui.campaign);
+  const c = PL.data.campaigns.find(x => x['Campaign ID'] === PL.ui.campaign);
   return c ? c['Campaign Name'] : '';
 }
-function render() {
-  const d = S.data, r = currentResult();
-  setChrome('Insights', d.config.workspaceName || '', '<button class="icon-btn refresh" data-act="refresh" aria-label="Refresh" title="Refresh">&#8635;</button><button class="link-btn" data-act="spec">Feature Spec</button>');
-  document.body.classList.remove('spec-view');
-  const warn = (d.stageWarnings || []).length ? '<div class="banner"><b>A few things to fix in the Stage list</b><ul>' + d.stageWarnings.map(x => '<li>' + esc(x.message) + '</li>').join('') + '</ul></div>' : '';
-  show(warn + filterHtml() + '<div class="asof">As of ' + esc(fmtD(d.config.today)) + '</div>' + funnelHtml(r) + movementHtml(r), '');
+function defaultCampaign(d) {
+  const act = d.campaigns.filter(c => String(c['Active']).toLowerCase() === 'yes').sort((a, b) => (b['Start Date'] || '').localeCompare(a['Start Date'] || ''));
+  return act.length ? act[0]['Campaign ID'] : '';
 }
-ACTS.spec = () => {
-  setChrome('Feature Spec', '', '<button class="link-btn" data-act="back">Back</button>');
-  document.body.classList.add('spec-view');
-  const mark = s => esc(s).replace(/\[CONFIRMED[^\]]*\]/g, m => '<span class="badge st-conv">' + m.slice(1, -1) + '</span>').replace(/\[UNVERIFIED[^\]]*\]/g, m => '<span class="badge cold">' + m.slice(1, -1) + '</span>');
-  show('<div class="spec-wrap"><table class="spec"><thead><tr><th>Sr No</th><th>Feature</th><th>New / Modified</th><th>Screen / Location</th><th>Delta</th><th>Validations</th><th>Calculations</th><th>Dependencies</th></tr></thead><tbody>'
-    + FEATURE_SPEC.map((f, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(f.feature) + '</b></td><td>' + esc(f.status) + '</td><td>' + esc(f.screen) + '</td><td>' + esc(f.delta) + '</td><td>' + esc(f.validations) + '</td><td>' + mark(f.calculations) + '</td><td>' + esc(f.dependencies) + '</td></tr>').join('') + '</tbody></table></div>', '');
+VIEWS.pipeline = {
+  label: 'Pipeline', addressLabel: 'CRM web app address (Pipeline)', param: 'url', lastKey: 'lastUrl', action: 'getInsights',
+  init(d) { PL.data = d; if (PL.ui.campaign === null) PL.ui.campaign = defaultCampaign(d); },
+  render() {
+    const d = PL.data, r = currentResult();
+    const warn = (d.stageWarnings || []).length ? '<div class="banner"><b>A few things to fix in the Stage list</b><ul>' + d.stageWarnings.map(x => '<li>' + esc(x.message) + '</li>').join('') + '</ul></div>' : '';
+    paint(warn + filterHtml() + '<div class="asof">As of ' + esc(fmtD(d.config.today)) + '</div>' + funnelHtml(r) + movementHtml(r));
+  }
 };
-ACTS.back = () => render();
+
+
+/* ====================================================================
+   TRAINING VIEW (I10 to I17) — reads the Training web app, action
+   getTrainingInsights. Only delivered trainings are counted.
+   ==================================================================== */
+const TR = { data: null, recs: [], ui: { period: 'quarter', offset: 0, from: '', to: '', metric: 'participants', dim: 'product', filters: {}, showAll: false, list: false } };
+
+// ==== PURE BEGIN (training) ====
+const TR_METRICS = [['orgs', 'Organisations reached'], ['participants', 'Participants'], ['trainings', 'Trainings'], ['hours', 'Training hours'], ['revenue', 'Revenue earned']];
+const TR_DIMS = [['product', 'Product'], ['facilitator', 'Facilitator'], ['client', 'Client'], ['orgtype', 'Org type'], ['state', 'State'], ['mode', 'Mode'], ['fee', 'Fee type']];
+const TR_PERIODS = [['month', 'This month'], ['quarter', 'This quarter'], ['half', 'This half-year'], ['year', 'This year'], ['custom', 'Custom']];
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function addMonths(s, n) { const d = new Date(parseD(s)); const m = d.getUTCFullYear() * 12 + d.getUTCMonth() + n; return Math.floor(m / 12) + '-' + pad2(m % 12 + 1) + '-01'; }
+function periodMonths(kind) { return kind === 'month' ? 1 : kind === 'quarter' ? 3 : kind === 'half' ? 6 : 12; }
+// Period for the chips: month = calendar month; quarter, half-year and year follow the financial year that starts in month fyStart (1 to 12).
+// offset steps back by whole periods (0 = the current one).
+function trPeriod(kind, today, fyStart, offset, cFrom, cTo) {
+  if (kind === 'custom') {
+    let f = cFrom || today, t = cTo || today;
+    if (f > t) { const x = f; f = t; t = x; }
+    return { from: f, to: t };
+  }
+  const len = periodMonths(kind), m0 = new Date(parseD(today)).getUTCMonth(), fy = ((+fyStart || 4) - 1);
+  const back = kind === 'month' ? 0 : ((m0 - fy + 12) % 12) % len;
+  const from = addMonths(today, -back - (offset || 0) * len);
+  return { from: from, to: addDays(addMonths(from, len), -1) };
+}
+// The span the numbers are compared with: the period just before, over the same elapsed days
+// (a running period is compared with the same number of days of the one before it).
+function trPrevious(kind, range, today) {
+  if (kind === 'custom') { const n = daysBetween(range.from, range.to) + 1; return { from: addDays(range.from, -n), to: addDays(range.from, -1) }; }
+  const len = periodMonths(kind), pFrom = addMonths(range.from, -len), pEnd = addDays(range.from, -1);
+  const upTo = today < range.to ? today : range.to;
+  const to = addDays(pFrom, Math.max(daysBetween(range.from, upTo), 0));
+  return { from: pFrom, to: to > pEnd ? pEnd : to };
+}
+function trPeriodLabel(kind, range, fyStart) {
+  const my = s => MON[+s.slice(5, 7) - 1] + ' ' + s.slice(0, 4);
+  if (kind === 'month') return MONTH_FULL[+range.from.slice(5, 7) - 1] + ' ' + range.from.slice(0, 4);
+  if (kind === 'custom') return range.from === range.to ? fmtD(range.from) : fmtShort(range.from) + ' to ' + fmtD(range.to);
+  if (kind === 'year') { const y = +range.from.slice(0, 4); return (+fyStart || 4) === 1 ? String(y) : 'FY ' + y + '-' + String((y + 1) % 100).padStart(2, '0'); }
+  return range.from.slice(5, 7) === range.to.slice(5, 7) ? my(range.from) : (range.from.slice(0, 4) === range.to.slice(0, 4) ? MON[+range.from.slice(5, 7) - 1] : my(range.from)) + ' – ' + my(range.to);
+}
+// Indian style: 12,34,567 and, shortened, 9.6L or 1.2Cr.
+function fmtRs(n) {
+  n = Math.round(n || 0);
+  const neg = n < 0; let s = String(Math.abs(n));
+  if (s.length > 3) { const last3 = s.slice(-3); let rest = s.slice(0, -3); rest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ','); s = rest + ',' + last3; }
+  return (neg ? '-' : '') + '₹' + s;
+}
+function fmtRsShort(n) {
+  n = n || 0; const a = Math.abs(n), sg = n < 0 ? '-' : '';
+  const t = x => String(Math.round(x * 10) / 10).replace(/\.0$/, '');
+  if (a >= 1e7) return sg + '₹' + t(a / 1e7) + 'Cr';
+  if (a >= 1e5) return sg + '₹' + t(a / 1e5) + 'L';
+  if (a >= 1e3) return sg + '₹' + t(a / 1e3) + 'k';
+  return sg + '₹' + Math.round(a);
+}
+function fmtMetric(metric, v, short) { return metric === 'revenue' ? (short ? fmtRsShort(v) : fmtRs(v)) : String(Math.round(v)); }
+function splitNames(s) { return String(s || '').split(',').map(x => x.trim()).filter(Boolean); }
+function normKey(s) { return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+function wholeOrNull(v) { const x = String(v === undefined || v === null ? '' : v).trim(); return /^\d+$/.test(x) ? parseInt(x, 10) : null; }
+// One record per delivered training, with everything the breakdowns need.
+function buildRecs(data) {
+  const orgBy = {}; data.orgs.forEach(o => { orgBy[o['Org ID']] = o; });
+  function resolve(id) { for (let h = 0; h < 6; h++) { const o = orgBy[id]; if (o && o['Record Status'] === 'Archived' && o['Archived To']) id = o['Archived To']; else break; } return id; }
+  const prodName = {}; data.products.forEach(p => { prodName[p['Product ID']] = p['Product Name']; });
+  const stateSeen = {}, recs = [];
+  data.trainings.forEach(t => {
+    if (t['Status'] !== 'Delivered') return;
+    const last = t['End Date'] || t['Start Date'];
+    if (isNaN(parseD(last))) return;
+    const basis = t['Fee Basis'], fee = parseFloat(String(t['Fee Amount'] || '').replace(/,/g, '')) || 0;
+    const ap = wholeOrNull(t['Actual Participants']), hrs = wholeOrNull(t['Hours']);
+    const rev = basis === 'Free' ? 0 : basis === 'Per training' ? fee : basis === 'Per participant' ? fee * (ap || 0) : 0;
+    const oid = t['Org ID'] ? resolve(t['Org ID']) : '', o = oid ? orgBy[oid] : null;
+    const facs = splitNames(t['Facilitators']);
+    let state = 'No organisation';
+    if (oid) {
+      const raw = o ? String(o['State'] || '').trim().replace(/\s+/g, ' ') : '';
+      if (!raw) state = 'Not set'; else { const k = normKey(raw); if (!stateSeen[k]) stateSeen[k] = raw; state = stateSeen[k]; }
+    }
+    recs.push({
+      id: t['Training ID'], date: last, ym: last.slice(0, 7), org: oid, orgName: o ? o['Org Name'] : (oid || 'No organisation'),
+      productName: prodName[t['Product ID']] || t['Product ID'] || 'Unknown product',
+      part: ap || 0, hours: hrs || 0, rev: rev, revFull: rev, facs: facs, missing: ap === null || hrs === null,
+      dims: {
+        product: [prodName[t['Product ID']] || t['Product ID'] || 'Unknown product'],
+        facilitator: facs.length ? facs : ['No facilitator recorded'],
+        client: [o ? o['Org Name'] : (oid || 'No organisation')],
+        orgtype: [oid ? ((o && o['Org Type']) || 'Not set') : 'No organisation'],
+        state: [state],
+        mode: [t['Mode'] || 'Not set'],
+        fee: [basis === 'Free' ? 'Free' : 'Charged']
+      }
+    });
+  });
+  return recs;
+}
+function inRange(recs, range) { return recs.filter(r => r.date >= range.from && r.date <= range.to); }
+// Filters stack: a training must match every chosen value. With a Facilitator filter, revenue is shared equally between a training's facilitators.
+function applyFilters(recs, filters) {
+  const keys = Object.keys(filters);
+  return recs.filter(r => keys.every(k => r.dims[k].indexOf(filters[k]) >= 0)).map(r => {
+    const x = Object.assign({}, r);
+    x.rev = filters.facilitator ? r.rev / r.dims.facilitator.length : r.rev;
+    return x;
+  });
+}
+function tilesOf(recs) {
+  const orgs = new Set(); let part = 0, hours = 0, rev = 0;
+  recs.forEach(r => { if (r.org) orgs.add(r.org); part += r.part; hours += r.hours; rev += r.rev; });
+  return { orgs: orgs.size, participants: part, trainings: recs.length, hours: hours, revenue: rev };
+}
+// Ranked values for one breakdown. Facilitators are credited each training in full; revenue is shared equally between them.
+function breakdown(recs, metric, dim) {
+  const m = new Map();
+  recs.forEach(r => {
+    const vals = r.dims[dim];
+    vals.forEach(v => {
+      const e = m.get(v) || { v: 0, orgs: new Set() };
+      if (metric === 'orgs') { if (r.org) e.orgs.add(r.org); }
+      else e.v += metric === 'participants' ? r.part : metric === 'trainings' ? 1 : metric === 'hours' ? r.hours : r.rev / (dim === 'facilitator' ? vals.length : 1);
+      m.set(v, e);
+    });
+  });
+  const total = tilesOf(recs)[metric];
+  const out = [];
+  m.forEach((e, k) => { const val = metric === 'orgs' ? e.orgs.size : e.v; if (val > 0) out.push({ label: k, value: val, share: total ? val / total : 0 }); });
+  out.sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+  return { rows: out, total: total };
+}
+function monthsIn(range) {
+  const out = []; let s = range.from.slice(0, 7) + '-01';
+  while (s <= range.to && out.length < 120) { out.push(s.slice(0, 7)); s = addMonths(s, 1); }
+  return out;
+}
+function trendOf(recs, metric, range) {
+  return monthsIn(range).map(ym => {
+    const rs = recs.filter(r => r.ym === ym && r.date >= range.from && r.date <= range.to);
+    return { ym: ym, label: MON[+ym.slice(5, 7) - 1] + (+ym.slice(2, 4) ? ' ' + ym.slice(2, 4) : ''), value: tilesOf(rs)[metric] };
+  });
+}
+function changeOf(cur, prev) {
+  if (!cur && !prev) return { dir: 'flat', text: '–' };
+  if (!prev) return { dir: 'up', text: 'new' };
+  const p = Math.round((cur - prev) / prev * 100);
+  return p === 0 ? { dir: 'flat', text: '0%' } : { dir: p > 0 ? 'up' : 'down', text: Math.abs(p) + '%' };
+}
+// ==== PURE END ====
+
+/* ==== BEGIN I10 — Training: period ============================================ */
+/* @spec I10
+ * Feature: Training period
+ * Status: New in v4
+ * Screen: Insights > Training (top)
+ * Delta: New period choice for the Training view: This month, This quarter, This half-year, This year and Custom. Arrows step back to the earlier periods and forward again. Everything on the view follows the period.
+ * Validations: Form: Custom needs two dates; if From is after To the two are swapped. Both dates are included. The forward arrow is off on the current period.
+ * Calculations: This month is the calendar month [CONFIRMED]. Quarter, half-year and year follow the financial year, which starts in the month given by Financial Year Start Month in the company Config, 4 (April) when it is blank [CONFIRMED]. With April: quarters are Apr to Jun, Jul to Sep, Oct to Dec and Jan to Mar; half-years Apr to Sep and Oct to Mar; the year Apr to Mar [CONFIRMED]. Example: on 25 Oct 2026, This quarter is 1 Oct to 31 Dec 2026 [CONFIRMED]. Only delivered trainings are counted, and a training falls in the period of its last day, which is its End Date, or its Start Date when the End Date is blank; it is never split across periods [CONFIRMED]. The view opens on This quarter [CONFIRMED].
+ * Dependencies: Trainings: Status, Start Date, End Date; Config (company): Financial Year Start Month; F16 (getTrainingInsights).
+ * @end */
+function trRange() { const d = TR.data; return trPeriod(TR.ui.period, d.config.today, d.config.fyStartMonth, TR.ui.offset, TR.ui.from, TR.ui.to); }
+function periodHtml() {
+  const ui = TR.ui, r = trRange(), fy = TR.data.config.fyStartMonth;
+  const step = ui.period !== 'custom'
+    ? '<div class="period-step"><button class="step-btn" data-act="tstep" data-v="1" aria-label="Earlier period">‹</button><div class="label">' + esc(trPeriodLabel(ui.period, r, fy)) + '</div><button class="step-btn" data-act="tstep" data-v="-1" aria-label="Later period"' + (ui.offset === 0 ? ' disabled' : '') + '>›</button></div>' : '';
+  return '<div class="card"><div class="chips">' + TR_PERIODS.map(p => '<button class="chip' + (ui.period === p[0] ? ' selected' : '') + '" data-act="tperiod" data-v="' + p[0] + '">' + p[1] + '</button>').join('') + '</div>'
+    + (ui.period === 'custom' ? '<div class="period-custom"><div class="field" style="margin:0"><label class="field-label">From</label><input type="date" id="tFrom" data-chg="tdate" value="' + escA(r.from) + '"></div><div class="field" style="margin:0"><label class="field-label">To</label><input type="date" id="tTo" data-chg="tdate" value="' + escA(r.to) + '"></div></div>' : '')
+    + step + '</div>';
+}
+ACTS.tperiod = el => { TR.ui.period = el.dataset.v; TR.ui.offset = 0; if (TR.ui.period === 'custom' && !TR.ui.from) { const r = trPeriod('quarter', TR.data.config.today, TR.data.config.fyStartMonth, 0); TR.ui.from = r.from; TR.ui.to = TR.data.config.today < r.to ? TR.data.config.today : r.to; } TR.ui.list = false; render(); };
+ACTS.tstep = el => { const n = TR.ui.offset + parseInt(el.dataset.v, 10); if (n < 0) return; TR.ui.offset = n; render(); };
+ACTS.tdate = () => { TR.ui.from = $('#tFrom').value; TR.ui.to = $('#tTo').value; render(); };
+/* ==== END I10 ================================================================ */
+
+/* ==== BEGIN I11 — Training: five tiles ======================================== */
+/* @spec I11
+ * Feature: Training tiles
+ * Status: New in v4
+ * Screen: Insights > Training
+ * Delta: New row of five tiles that wraps on a phone: Organisations reached, Participants, Trainings, Training hours and Revenue earned for the period. Tapping a tile chooses what the trend and the breakdown show.
+ * Validations: Form: none.
+ * Calculations: Only delivered trainings in the period, after any filters, are counted [CONFIRMED]. Organisations reached is the number of distinct client organisations; an organisation archived as a duplicate counts under the organisation named in its Archived To; a delivered training with no organisation goes into a No organisation group and is counted in participants, hours and revenue but not in organisations [CONFIRMED]. Participants is the sum of Actual Participants: attendances, not unique people [CONFIRMED]. Trainings is the number of delivered trainings [CONFIRMED]. Training hours is the sum of the Hours of each delivered training, for example a 12-hour workshop delivered twice is 24 hours [CONFIRMED]. Revenue earned is 0 for a Free training, the Fee Amount for Per training, and the Fee Amount times Actual Participants for Per participant [CONFIRMED]. Revenue is what was earned, not what was collected: receipts are not used [CONFIRMED]. Money is shown in the Indian style with lakh and crore grouping [CONFIRMED]. The view opens on Participants [UNVERIFIED — NEEDS CONFIRMATION].
+ * Dependencies: Trainings: Status, Org ID, Actual Participants, Hours, Fee Basis, Fee Amount; Orgs: Archived To; I10; I12; I13; I14.
+ * @end */
+function tilesHtml(cur, prev, prevRange) {
+  const ui = TR.ui;
+  const tiles = TR_METRICS.map(m => {
+    const c = changeOf(cur[m[0] === 'orgs' ? 'orgs' : m[0]], prev[m[0]]);
+    return '<button class="tile' + (ui.metric === m[0] ? ' selected' : '') + '" data-act="tmetric" data-v="' + m[0] + '" aria-pressed="' + (ui.metric === m[0]) + '"><span class="t-label">' + esc(m[1]) + '</span><span class="t-num">' + esc(fmtMetric(m[0], cur[m[0]])) + '</span>'
+      + '<span class="t-chg t-' + c.dir + '">' + (c.dir === 'up' ? '▲ ' : c.dir === 'down' ? '▼ ' : '') + esc(c.text) + '</span></button>';
+  }).join('');
+  return '<div class="tiles">' + tiles + '</div><div class="tiles-note">Change compared with ' + esc(trPeriodLabel('custom', prevRange)) + '</div>';
+}
+ACTS.tmetric = el => { TR.ui.metric = el.dataset.v; render(); };
+/* ==== END I11 ================================================================ */
+
+/* ==== BEGIN I12 — Training: change arrows ===================================== */
+/* @spec I12
+ * Feature: Training change arrows
+ * Status: New in v4
+ * Screen: Insights > Training > tiles
+ * Delta: New up or down arrow and percentage on each tile, comparing the period with the one before it, and a line under the tiles that names the span compared with.
+ * Validations: Form: none.
+ * Calculations: The span compared with is the period just before the chosen one, over the same elapsed days: a running quarter 1 to 25 Oct is compared with 1 to 25 Jul, a completed period with the whole of the one before it, and a Custom period with the equal number of days just before it [CONFIRMED]. Change is the difference divided by the earlier value, rounded to a whole percent [CONFIRMED]. Up is green and down is red, with the arrow and the number so colour is never the only signal [CONFIRMED]. When the earlier value is 0 and the new value is above 0 the tile says new; when both are 0 it shows a dash [CONFIRMED]. The same filters apply to both spans [CONFIRMED].
+ * Dependencies: I10; I11.
+ * @end */
+/* ==== END I12 ================================================================ */
+
+/* ==== BEGIN I13 — Training: trend ============================================= */
+/* @spec I13
+ * Feature: Training trend
+ * Status: New in v4
+ * Screen: Insights > Training > Trend
+ * Delta: New card with one bar for each month of the period, for the metric chosen from the tiles. It does not depend on the View by choice.
+ * Validations: Form: none.
+ * Calculations: A training is counted in the month of its last day [CONFIRMED]. The metric is the one chosen on the tiles, and the filters apply [CONFIRMED]. Organisations reached for a month counts each organisation once in that month, so months can add up to more than the period total [CONFIRMED]. Money on the bars is shortened, for example ₹9.6L or ₹1.2Cr [CONFIRMED]. Months with nothing delivered show an empty bar [CONFIRMED]. A long Custom period scrolls sideways [CONFIRMED].
+ * Dependencies: I10; I11.
+ * @end */
+function trendHtml(recs, range) {
+  const t = trendOf(recs, TR.ui.metric, range), max = Math.max.apply(null, t.map(x => x.value).concat([0]));
+  const showVals = t.length <= 8;
+  const name = TR_METRICS.filter(m => m[0] === TR.ui.metric)[0][1];
+  return '<div class="card"><div class="card-title">' + esc(name) + ' by month</div><div class="trend" role="img" aria-label="' + escA(name) + ' by month: ' + escA(t.map(x => x.label + ' ' + fmtMetric(TR.ui.metric, x.value, true)).join(', ')) + '">'
+    + t.map(x => '<div class="col" title="' + escA(x.label + ': ' + fmtMetric(TR.ui.metric, x.value)) + '">' + (showVals ? '<span class="v">' + esc(fmtMetric(TR.ui.metric, x.value, true)) + '</span>' : '')
+      + '<div class="b' + (x.value ? '' : ' zero') + '" style="height:' + (max ? Math.round(x.value / max * 100) : 0) + '%"></div></div>').join('')
+    + '</div><div class="trend-labels">' + t.map(x => '<span>' + esc(x.label) + '</span>').join('') + '</div></div>';
+}
+/* ==== END I13 ================================================================ */
+
+/* ==== BEGIN I14 — Training: view by =========================================== */
+/* @spec I14
+ * Feature: Training view by
+ * Status: New in v4
+ * Screen: Insights > Training > View by
+ * Delta: New card that breaks the chosen metric down over the whole period as ranked bars, each with its value and its share of the total. Choose the breakdown from Product, Facilitator, Client, Org type, State, Mode and Fee type (Free or Charged).
+ * Validations: Form: none. A breakdown that already has a filter is greyed out and cannot be chosen.
+ * Calculations: Bars are ranked from the largest; a value of 0 is not listed [CONFIRMED]. Share is the bar's value as a percentage of the metric's total in view [CONFIRMED]. Several facilitators can share a training: each facilitator is credited the full training, its participants and its hours, and its revenue is split equally between them; so facilitator bars can add up to more than the total, except for revenue [CONFIRMED]. Organisations reached by bars can add up to more than the total, because one organisation can sit under several groups [CONFIRMED]. Org type, State and Client come from the client's organisation record, after an archived record is replaced by its Archived To record; a delivered training with no organisation shows as No organisation [CONFIRMED]. State is free text: values are grouped ignoring upper and lower case and extra spaces and shown in the first spelling met [CONFIRMED]. Fee type is Free when Fee Basis is Free and Charged when it is Per training or Per participant [CONFIRMED]. The first 8 bars are shown, with a Show all choice for the rest [CONFIRMED]. Not offered: Month, Country, Training type, Facilitator level and Source [CONFIRMED].
+ * Dependencies: Trainings; Products: Product Name; Facilitators; Orgs: Org Name, Org Type, State, Archived To; I11; I15.
+ * @end */
+function viewByHtml(recs) {
+  const ui = TR.ui, metric = ui.metric, br = breakdown(recs, metric, ui.dim);
+  const top = br.rows.length ? br.rows[0].value : 0, shown = ui.showAll ? br.rows : br.rows.slice(0, 8);
+  const chips = TR_DIMS.map(d => {
+    const off = ui.filters[d[0]] !== undefined;
+    return '<button class="chip' + (ui.dim === d[0] ? ' selected' : '') + (off ? ' dim-off' : '') + '"' + (off ? ' disabled aria-disabled="true"' : '') + ' data-act="tdim" data-v="' + d[0] + '">' + d[1] + '</button>';
+  }).join('');
+  const rows = shown.map(r => '<button class="vb-row" data-act="tfilter" data-v="' + escA(r.label) + '" aria-label="Filter to ' + escA(r.label) + '"><div class="vb-head"><span class="vb-name">' + esc(r.label) + '</span><span class="vb-num">' + esc(fmtMetric(metric, r.value)) + '<small>' + Math.round(r.share * 100) + '%</small></span></div>'
+    + '<div class="vb-track"><div class="vb-bar" style="width:' + Math.max(top ? r.value / top * 100 : 0, 2) + '%"></div></div></button>').join('');
+  const name = TR_METRICS.filter(m => m[0] === metric)[0][1], dn = TR_DIMS.filter(d => d[0] === ui.dim)[0][1];
+  return '<div class="card"><div class="card-title">' + esc(name) + ' by ' + esc(dn.toLowerCase()) + '</div><div class="dimchips">' + chips + '</div>'
+    + (rows || '<div class="empty" style="padding:18px 0">Nothing delivered in this period.</div>')
+    + (br.rows.length > 8 ? '<button class="link-btn" data-act="tall">' + (ui.showAll ? 'Show fewer' : 'Show all ' + br.rows.length) + '</button>' : '') + '</div>';
+}
+ACTS.tdim = el => { if (el.disabled) return; TR.ui.dim = el.dataset.v; TR.ui.showAll = false; render(); };
+ACTS.tall = () => { TR.ui.showAll = !TR.ui.showAll; render(); };
+/* ==== END I14 ================================================================ */
+
+/* ==== BEGIN I15 — Training: tap to filter ===================================== */
+/* @spec I15
+ * Feature: Training tap to filter
+ * Status: New in v4
+ * Screen: Insights > Training
+ * Delta: New: tapping a bar adds a removable chip above the tiles, and the tiles, trend, bars and trainings list all follow it. Filters stack, so QPR and then Mumbai shows QPR in Mumbai.
+ * Validations: Form: none. A chip is removed by tapping it. Only one value can be chosen for each breakdown.
+ * Calculations: Filters combine so that a training must match all of them [CONFIRMED]. After a filter is added to the breakdown on screen, the view moves to the next breakdown that has no filter, so the same view can keep going [CONFIRMED]. A breakdown that has a filter is greyed in the View by choices until its chip is removed [CONFIRMED]. Stepping to another period keeps the filters [CONFIRMED]. Clear all removes every filter [CONFIRMED]. With a Facilitator filter, revenue is each facilitator's equal share of the training [CONFIRMED].
+ * Dependencies: I14; I16.
+ * @end */
+function filterChipsHtml() {
+  const f = TR.ui.filters, keys = TR_DIMS.map(d => d[0]).filter(k => f[k] !== undefined);
+  if (!keys.length) return '';
+  return '<div class="fchips">' + keys.map(k => '<button class="fchip" data-act="tunfilter" data-v="' + k + '" aria-label="Remove filter ' + escA(f[k]) + '"><small>' + esc(TR_DIMS.filter(d => d[0] === k)[0][1]) + '</small> ' + esc(f[k]) + ' <span class="x">×</span></button>').join('')
+    + (keys.length > 1 ? '<button class="link-btn" data-act="tclear">Clear all</button>' : '') + '</div>';
+}
+ACTS.tfilter = el => {
+  const ui = TR.ui; ui.filters[ui.dim] = el.dataset.v;
+  const next = TR_DIMS.map(d => d[0]).filter(k => ui.filters[k] === undefined);
+  if (next.length) ui.dim = next[0];
+  ui.showAll = false; render();
+};
+ACTS.tunfilter = el => { delete TR.ui.filters[el.dataset.v]; TR.ui.showAll = false; render(); };
+ACTS.tclear = () => { TR.ui.filters = {}; render(); };
+/* ==== END I15 ================================================================ */
+
+/* ==== BEGIN I16 — Training: see trainings ===================================== */
+/* @spec I16
+ * Feature: Training see trainings
+ * Status: New in v4
+ * Screen: Insights > Training > See trainings
+ * Delta: New list of the delivered trainings behind the numbers on screen: date, client, product, participants and revenue.
+ * Validations: Form: none. The list is read only.
+ * Calculations: The list shows the delivered trainings in the period that match the filters, newest first by last day [CONFIRMED]. The date shown is the Start Date, or Start to End for a longer training [CONFIRMED]. Revenue is the training's own revenue. When a Facilitator filter is on, the totals share revenue equally between facilitators, and a line says so [CONFIRMED]. A training with no organisation shows No organisation [CONFIRMED].
+ * Dependencies: Trainings; I10; I15.
+ * @end */
+function listHtml(recs, trainingsById) {
+  const rows = recs.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const fl = TR.ui.filters;
+  const dates = r => { const t = trainingsById[r.id] || {}; return t['End Date'] && t['End Date'] !== t['Start Date'] ? fmtShort(t['Start Date']) + ' – ' + fmtD(t['End Date']) : fmtD(t['Start Date'] || r.date); };
+  return filterChipsHtml() + '<div class="count-line">' + esc(plural(rows.length, 'training')) + '</div>'
+    + (fl.facilitator ? '<div class="notice">Revenue in the totals is shared equally between the facilitators of a training; each training below shows its full revenue.</div>' : '')
+    + '<div class="list">' + (rows.length ? rows.map(r => '<div class="row"><div class="row-top"><div class="row-title">' + esc(r.orgName) + '</div><div class="muted small">' + esc(dates(r)) + '</div></div>'
+      + '<div class="row-sub">' + esc(r.productName) + ' · ' + esc(plural(r.part, 'participant')) + (r.revFull ? ' · ' + esc(fmtRs(r.revFull)) : '') + '</div></div>').join('') : '<div class="empty">Nothing delivered in this period.</div>') + '</div>'
+    + '<button class="btn" data-act="tlistback">Back to the numbers</button>';
+}
+ACTS.tlist = () => { TR.ui.list = true; render(); window.scrollTo(0, 0); };
+ACTS.tlistback = () => { TR.ui.list = false; render(); window.scrollTo(0, 0); };
+/* ==== END I16 ================================================================ */
+
+/* ==== BEGIN I17 — Training: missing figures notice ============================ */
+/* @spec I17
+ * Feature: Training missing figures notice
+ * Status: New in v4
+ * Screen: Insights > Training (under the tiles)
+ * Delta: New small notice that appears only when some delivered trainings in view have no participant count or no hours.
+ * Validations: Form: none.
+ * Calculations: A delivered training with a blank Actual Participants or a blank Hours counts as 0 for that figure; no estimate is made and the product's hours are not used [CONFIRMED]. The notice gives the number of such trainings in the numbers on screen, after the filters [CONFIRMED]. Trainings entered before the End Date and Hours fields existed, with a blank End Date, count as one-day trainings on their Start Date until they are edited [CONFIRMED].
+ * Dependencies: Trainings: Actual Participants, Hours, End Date; I11.
+ * @end */
+function noticeHtml(recs) {
+  const n = recs.filter(r => r.missing).length;
+  return n ? '<div class="notice">' + esc(plural(n, 'delivered training')) + (n === 1 ? ' has' : ' have') + ' no participant count or hours entered, so ' + (n === 1 ? 'it counts' : 'they count') + ' as 0 for those.</div>' : '';
+}
+/* ==== END I17 ================================================================ */
+
+VIEWS.training = {
+  label: 'Training', addressLabel: 'Training web app address', param: 'training', lastKey: 'lastUrlTraining', action: 'getTrainingInsights',
+  init(d) { TR.data = d; TR.recs = buildRecs(d); TR.byId = {}; d.trainings.forEach(t => { TR.byId[t['Training ID']] = t; }); },
+  render() {
+    const d = TR.data, ui = TR.ui, range = trRange(), prevRange = trPrevious(ui.period, range, d.config.today);
+    const inPeriod = applyFilters(inRange(TR.recs, range), ui.filters);
+    if (ui.list) { paint(listHtml(inPeriod, TR.byId)); return; }
+    const prev = tilesOf(applyFilters(inRange(TR.recs, prevRange), ui.filters)), cur = tilesOf(inPeriod);
+    paint(periodHtml() + filterChipsHtml() + tilesHtml(cur, prev, prevRange) + noticeHtml(inPeriod) + trendHtml(inPeriod, range) + viewByHtml(inPeriod)
+      + '<button class="btn btn-primary" style="width:100%" data-act="tlist">See trainings</button><div class="asof" style="margin-top:12px">As of ' + esc(fmtD(d.config.today)) + '</div>');
+  }
+};
+
+
 const FEATURE_SPEC = [
  {
   "feature": "Connect with the Insights key",
-  "status": "Modified in v2",
+  "status": "Modified in v4",
   "screen": "First open",
-  "delta": "New start-up flow: the web app address (from the landing page link ?url=, or typed once) and the Insights Team Key. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24).",
-  "validations": "Form: the web app address must answer; the key is required only when the server asks for one. The server accepts the Insights Team Key only for the read-only getInsights action, and the Team Key also works. A wrong key shows a message and asks again.",
-  "calculations": "Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link only when the link's own web app address is the one in use [CONFIRMED].",
-  "dependencies": "Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs).",
+  "delta": "Start-up flow: the web app addresses (from the landing page link, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.",
+  "validations": "Form: each address given must answer; the key is required only when the server asks for one. Each web app accepts the Insights Team Key only for its one read action, and its Team Key also works. A wrong key shows a message and asks again.",
+  "calculations": "Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link and kept for the page [CONFIRMED]. The heading shows the workspace name of the view on screen [CONFIRMED].",
+  "dependencies": "Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs); F16 (getTrainingInsights action in training_v2.gs); I09.",
   "id": "I01"
  },
  {
@@ -657,22 +1095,125 @@ const FEATURE_SPEC = [
   "feature": "Refresh",
   "status": "New in v1",
   "screen": "Header",
-  "delta": "New refresh button in the header that fetches the latest numbers without reloading the page. The campaign and period choices are kept.",
+  "delta": "New refresh button in the header that fetches the latest numbers without reloading the page. The campaign, period and filter choices are kept. In v4 it refreshes the view that is on screen.",
   "validations": "Form: none.",
   "calculations": "Refresh fetches the same data as the first load and redraws the view [CONFIRMED]. If the fetch fails, a message appears and the numbers on screen are kept [CONFIRMED].",
   "dependencies": "I01.",
   "id": "I08"
+ },
+ {
+  "feature": "Views and view switcher",
+  "status": "New in v4",
+  "screen": "Insights (top of every view)",
+  "delta": "Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.",
+  "validations": "Form: none. The switcher is not shown when only one view is available.",
+  "calculations": "A view is available when the link used to open Insights carries its web app address: url for Pipeline, training for Training [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].",
+  "dependencies": "I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.",
+  "id": "I09"
+ },
+ {
+  "feature": "Training period",
+  "status": "New in v4",
+  "screen": "Insights > Training (top)",
+  "delta": "New period choice for the Training view: This month, This quarter, This half-year, This year and Custom. Arrows step back to the earlier periods and forward again. Everything on the view follows the period.",
+  "validations": "Form: Custom needs two dates; if From is after To the two are swapped. Both dates are included. The forward arrow is off on the current period.",
+  "calculations": "This month is the calendar month [CONFIRMED]. Quarter, half-year and year follow the financial year, which starts in the month given by Financial Year Start Month in the company Config, 4 (April) when it is blank [CONFIRMED]. With April: quarters are Apr to Jun, Jul to Sep, Oct to Dec and Jan to Mar; half-years Apr to Sep and Oct to Mar; the year Apr to Mar [CONFIRMED]. Example: on 25 Oct 2026, This quarter is 1 Oct to 31 Dec 2026 [CONFIRMED]. Only delivered trainings are counted, and a training falls in the period of its last day, which is its End Date, or its Start Date when the End Date is blank; it is never split across periods [CONFIRMED]. The view opens on This quarter [CONFIRMED].",
+  "dependencies": "Trainings: Status, Start Date, End Date; Config (company): Financial Year Start Month; F16 (getTrainingInsights).",
+  "id": "I10"
+ },
+ {
+  "feature": "Training tiles",
+  "status": "New in v4",
+  "screen": "Insights > Training",
+  "delta": "New row of five tiles that wraps on a phone: Organisations reached, Participants, Trainings, Training hours and Revenue earned for the period. Tapping a tile chooses what the trend and the breakdown show.",
+  "validations": "Form: none.",
+  "calculations": "Only delivered trainings in the period, after any filters, are counted [CONFIRMED]. Organisations reached is the number of distinct client organisations; an organisation archived as a duplicate counts under the organisation named in its Archived To; a delivered training with no organisation goes into a No organisation group and is counted in participants, hours and revenue but not in organisations [CONFIRMED]. Participants is the sum of Actual Participants: attendances, not unique people [CONFIRMED]. Trainings is the number of delivered trainings [CONFIRMED]. Training hours is the sum of the Hours of each delivered training, for example a 12-hour workshop delivered twice is 24 hours [CONFIRMED]. Revenue earned is 0 for a Free training, the Fee Amount for Per training, and the Fee Amount times Actual Participants for Per participant [CONFIRMED]. Revenue is what was earned, not what was collected: receipts are not used [CONFIRMED]. Money is shown in the Indian style with lakh and crore grouping [CONFIRMED]. The view opens on Participants [UNVERIFIED — NEEDS CONFIRMATION].",
+  "dependencies": "Trainings: Status, Org ID, Actual Participants, Hours, Fee Basis, Fee Amount; Orgs: Archived To; I10; I12; I13; I14.",
+  "id": "I11"
+ },
+ {
+  "feature": "Training change arrows",
+  "status": "New in v4",
+  "screen": "Insights > Training > tiles",
+  "delta": "New up or down arrow and percentage on each tile, comparing the period with the one before it, and a line under the tiles that names the span compared with.",
+  "validations": "Form: none.",
+  "calculations": "The span compared with is the period just before the chosen one, over the same elapsed days: a running quarter 1 to 25 Oct is compared with 1 to 25 Jul, a completed period with the whole of the one before it, and a Custom period with the equal number of days just before it [CONFIRMED]. Change is the difference divided by the earlier value, rounded to a whole percent [CONFIRMED]. Up is green and down is red, with the arrow and the number so colour is never the only signal [CONFIRMED]. When the earlier value is 0 and the new value is above 0 the tile says new; when both are 0 it shows a dash [CONFIRMED]. The same filters apply to both spans [CONFIRMED].",
+  "dependencies": "I10; I11.",
+  "id": "I12"
+ },
+ {
+  "feature": "Training trend",
+  "status": "New in v4",
+  "screen": "Insights > Training > Trend",
+  "delta": "New card with one bar for each month of the period, for the metric chosen from the tiles. It does not depend on the View by choice.",
+  "validations": "Form: none.",
+  "calculations": "A training is counted in the month of its last day [CONFIRMED]. The metric is the one chosen on the tiles, and the filters apply [CONFIRMED]. Organisations reached for a month counts each organisation once in that month, so months can add up to more than the period total [CONFIRMED]. Money on the bars is shortened, for example ₹9.6L or ₹1.2Cr [CONFIRMED]. Months with nothing delivered show an empty bar [CONFIRMED]. A long Custom period scrolls sideways [CONFIRMED].",
+  "dependencies": "I10; I11.",
+  "id": "I13"
+ },
+ {
+  "feature": "Training view by",
+  "status": "New in v4",
+  "screen": "Insights > Training > View by",
+  "delta": "New card that breaks the chosen metric down over the whole period as ranked bars, each with its value and its share of the total. Choose the breakdown from Product, Facilitator, Client, Org type, State, Mode and Fee type (Free or Charged).",
+  "validations": "Form: none. A breakdown that already has a filter is greyed out and cannot be chosen.",
+  "calculations": "Bars are ranked from the largest; a value of 0 is not listed [CONFIRMED]. Share is the bar's value as a percentage of the metric's total in view [CONFIRMED]. Several facilitators can share a training: each facilitator is credited the full training, its participants and its hours, and its revenue is split equally between them; so facilitator bars can add up to more than the total, except for revenue [CONFIRMED]. Organisations reached by bars can add up to more than the total, because one organisation can sit under several groups [CONFIRMED]. Org type, State and Client come from the client's organisation record, after an archived record is replaced by its Archived To record; a delivered training with no organisation shows as No organisation [CONFIRMED]. State is free text: values are grouped ignoring upper and lower case and extra spaces and shown in the first spelling met [CONFIRMED]. Fee type is Free when Fee Basis is Free and Charged when it is Per training or Per participant [CONFIRMED]. The first 8 bars are shown, with a Show all choice for the rest [CONFIRMED]. Not offered: Month, Country, Training type, Facilitator level and Source [CONFIRMED].",
+  "dependencies": "Trainings; Products: Product Name; Facilitators; Orgs: Org Name, Org Type, State, Archived To; I11; I15.",
+  "id": "I14"
+ },
+ {
+  "feature": "Training tap to filter",
+  "status": "New in v4",
+  "screen": "Insights > Training",
+  "delta": "New: tapping a bar adds a removable chip above the tiles, and the tiles, trend, bars and trainings list all follow it. Filters stack, so QPR and then Mumbai shows QPR in Mumbai.",
+  "validations": "Form: none. A chip is removed by tapping it. Only one value can be chosen for each breakdown.",
+  "calculations": "Filters combine so that a training must match all of them [CONFIRMED]. After a filter is added to the breakdown on screen, the view moves to the next breakdown that has no filter, so the same view can keep going [CONFIRMED]. A breakdown that has a filter is greyed in the View by choices until its chip is removed [CONFIRMED]. Stepping to another period keeps the filters [CONFIRMED]. Clear all removes every filter [CONFIRMED]. With a Facilitator filter, revenue is each facilitator's equal share of the training [CONFIRMED].",
+  "dependencies": "I14; I16.",
+  "id": "I15"
+ },
+ {
+  "feature": "Training see trainings",
+  "status": "New in v4",
+  "screen": "Insights > Training > See trainings",
+  "delta": "New list of the delivered trainings behind the numbers on screen: date, client, product, participants and revenue.",
+  "validations": "Form: none. The list is read only.",
+  "calculations": "The list shows the delivered trainings in the period that match the filters, newest first by last day [CONFIRMED]. The date shown is the Start Date, or Start to End for a longer training [CONFIRMED]. Revenue is the training's own revenue. When a Facilitator filter is on, the totals share revenue equally between facilitators, and a line says so [CONFIRMED]. A training with no organisation shows No organisation [CONFIRMED].",
+  "dependencies": "Trainings; I10; I15.",
+  "id": "I16"
+ },
+ {
+  "feature": "Training missing figures notice",
+  "status": "New in v4",
+  "screen": "Insights > Training (under the tiles)",
+  "delta": "New small notice that appears only when some delivered trainings in view have no participant count or no hours.",
+  "validations": "Form: none.",
+  "calculations": "A delivered training with a blank Actual Participants or a blank Hours counts as 0 for that figure; no estimate is made and the product's hours are not used [CONFIRMED]. The notice gives the number of such trainings in the numbers on screen, after the filters [CONFIRMED]. Trainings entered before the End Date and Hours fields existed, with a blank End Date, count as one-day trainings on their Start Date until they are edited [CONFIRMED].",
+  "dependencies": "Trainings: Actual Participants, Hours, End Date; I11.",
+  "id": "I17"
  }
 ];
 
 function start() {
-  const p = new URLSearchParams(location.search);
-  NS = 'ins.';
-  const url = p.get('url') || store.get('lastUrl') || '';
-  if (!url) { viewConnect(); return; }
-  useUrl(url); begin();
+  const p = new URLSearchParams(location.search), ids = Object.keys(VIEWS);
+  const fromLink = ids.filter(id => p.get(VIEWS[id].param));
+  S.views = {};
+  if (fromLink.length) {
+    // The link decides which views this company has; addresses remembered for other views are dropped.
+    ids.forEach(id => {
+      if (fromLink.indexOf(id) >= 0) { const u = p.get(VIEWS[id].param); S.views[id] = { url: u, key: '', data: null }; store.set('', VIEWS[id].lastKey, u); }
+      else store.del('', VIEWS[id].lastKey);
+    });
+    const lg = p.get('logo') || '';
+    if (/^https?:\/\//i.test(lg)) store.set('', 'logo', lg);
+  } else {
+    ids.forEach(id => { const u = store.get('', VIEWS[id].lastKey); if (u) S.views[id] = { url: u, key: '', data: null }; });
+  }
+  S.logo = store.get('', 'logo') || '';
+  if (!availableViews().length) { viewConnect(); return; }
+  openView(preferredView());
 }
 if (typeof document !== 'undefined' && document.getElementById('view')) start();
+
 </script>
 </body>
 </html>

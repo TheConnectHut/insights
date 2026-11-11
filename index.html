@@ -264,7 +264,8 @@
 <style>
   /* ---- Training view styles (same tokens) ---- */
   .view-title { font-size: 20px; font-weight: 700; color: var(--primary-dark); margin: 2px 2px 12px; }
-  .view-tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; }
+  .view-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .view-tabs .tab { flex: 1 1 auto; white-space: normal; text-align: center; line-height: 1.25; }
   .period-step { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; }
   .period-step .label { font-weight: 700; color: var(--primary-dark); text-align: center; flex: 1; }
   .step-btn { width: 44px; height: 44px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); color: var(--primary); font-size: 20px; cursor: pointer; font-family: inherit; }

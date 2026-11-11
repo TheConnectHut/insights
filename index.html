@@ -407,7 +407,7 @@ function fieldInput(id, label, type, value, optional) { return '<div class="fiel
  * Screen: Insights (top of every view)
  * Delta: Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.
  * Validations: Form: none. The switcher is not shown when only one view is available.
- * Calculations: A view is available when the link used to open Insights carries its web app address: url for Pipeline, training for Training [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].
+ * Calculations: A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].
  * Dependencies: I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.
  * @end */
 function availableViews() { return Object.keys(VIEWS).filter(id => S.views[id]); }
@@ -439,7 +439,7 @@ function openView(id) {
  * Feature: Connect with the Insights key
  * Status: Modified in v4
  * Screen: First open
- * Delta: Start-up flow: the web app addresses (from the landing page link, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.
+ * Delta: Start-up flow: the web app addresses (from the landing page link, where Pipeline is crm_pipeline and Training is training, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.
  * Validations: Form: each address given must answer; the key is required only when the server asks for one. Each web app accepts the Insights Team Key only for its one read action, and its Team Key also works. A wrong key shows a message and asks again.
  * Calculations: Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link and kept for the page [CONFIRMED]. The heading shows the workspace name of the view on screen [CONFIRMED].
  * Dependencies: Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs); F16 (getTrainingInsights action in training_v2.gs); I09.
@@ -703,7 +703,7 @@ function defaultCampaign(d) {
   return act.length ? act[0]['Campaign ID'] : '';
 }
 VIEWS.pipeline = {
-  label: 'Pipeline', addressLabel: 'CRM web app address (Pipeline)', param: 'url', lastKey: 'lastUrl', action: 'getInsights',
+  label: 'Pipeline', addressLabel: 'CRM web app address (Pipeline)', param: 'crm_pipeline', legacyParam: 'url', lastKey: 'lastUrl', action: 'getInsights',
   init(d) { PL.data = d; if (PL.ui.campaign === null) PL.ui.campaign = defaultCampaign(d); },
   render() {
     const d = PL.data, r = currentResult();
@@ -1055,7 +1055,7 @@ const FEATURE_SPEC = [
   "feature": "Connect with the Insights key",
   "status": "Modified in v4",
   "screen": "First open",
-  "delta": "Start-up flow: the web app addresses (from the landing page link, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.",
+  "delta": "Start-up flow: the web app addresses (from the landing page link, where Pipeline is crm_pipeline and Training is training, or typed once) and the Insights Team Key for each. Both are remembered on the device for that address. The heading and main colour come from Config. In v2 the key screen appears only when the server asks for a key: with a blank Insights Team Key in Config, Insights opens for anyone (see F24). In v4 there can be two addresses, one for Pipeline (CRM) and one for Training, and each view asks for its own key when it needs one; the typed-address screen has a field for each and at least one is needed.",
   "validations": "Form: each address given must answer; the key is required only when the server asks for one. Each web app accepts the Insights Team Key only for its one read action, and its Team Key also works. A wrong key shows a message and asks again.",
   "calculations": "Remembered values are kept per web app address [CONFIRMED]. Nothing can be changed from this tool: it only reads [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED]. The logo is taken from the link and kept for the page [CONFIRMED]. The heading shows the workspace name of the view on screen [CONFIRMED].",
   "dependencies": "Config (Company): Insights Team Key, Team Key, Workspace Name, Primary Colour, Timezone; F23 (getInsights action in crm_v3.gs); F16 (getTrainingInsights action in training_v2.gs); I09.",
@@ -1107,7 +1107,7 @@ const FEATURE_SPEC = [
   "screen": "Insights (top of every view)",
   "delta": "Insights becomes one page that can hold several views. Pipeline (reads the CRM web app) and Training (reads the Training web app) are the two views today. Each view is one separate block of code with its own spec tags, so a view can be removed without touching the others. Pipeline is moved over unchanged. A switcher at the top lets the user move between the views that are available.",
   "validations": "Form: none. The switcher is not shown when only one view is available.",
-  "calculations": "A view is available when the link used to open Insights carries its web app address: url for Pipeline, training for Training [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].",
+  "calculations": "A view is available when the link used to open Insights carries its web app address: crm_pipeline for Pipeline, training for Training (an older link that carries url instead of crm_pipeline still opens Pipeline) [CONFIRMED]. When the link carries at least one of these, only the views named in the link are used and any other address remembered on the device is dropped, so a company's hub decides which views it shows [CONFIRMED]. When Insights is opened without a link (a bookmark), the addresses last remembered on the device are used [CONFIRMED]. If there is no address at all, the user is asked for them and can give one or both [CONFIRMED]. The view last used is opened next time when it is still available, otherwise the first available view [CONFIRMED]. Each view keeps its own key, its own data and its own choices, so switching back finds the view as it was left [CONFIRMED]. Each view loads when it is first opened [CONFIRMED]. Refresh refreshes the view on screen only [CONFIRMED].",
   "dependencies": "I01; I02 to I05 (Pipeline); I10 to I17 (Training); landing page Insights link.",
   "id": "I09"
  },
@@ -1195,12 +1195,13 @@ const FEATURE_SPEC = [
 
 function start() {
   const p = new URLSearchParams(location.search), ids = Object.keys(VIEWS);
-  const fromLink = ids.filter(id => p.get(VIEWS[id].param));
+  const linkUrl = id => p.get(VIEWS[id].param) || (VIEWS[id].legacyParam ? p.get(VIEWS[id].legacyParam) : '') || '';
+  const fromLink = ids.filter(id => linkUrl(id));
   S.views = {};
   if (fromLink.length) {
     // The link decides which views this company has; addresses remembered for other views are dropped.
     ids.forEach(id => {
-      if (fromLink.indexOf(id) >= 0) { const u = p.get(VIEWS[id].param); S.views[id] = { url: u, key: '', data: null }; store.set('', VIEWS[id].lastKey, u); }
+      if (fromLink.indexOf(id) >= 0) { const u = linkUrl(id); S.views[id] = { url: u, key: '', data: null }; store.set('', VIEWS[id].lastKey, u); }
       else store.del('', VIEWS[id].lastKey);
     });
     const lg = p.get('logo') || '';
